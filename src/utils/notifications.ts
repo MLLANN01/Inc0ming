@@ -6,7 +6,7 @@ export class NotificationManager {
     private notifiedItems = new Set<string>();
 
     checkItems(store: DataStore): void {
-        const config = vscode.workspace.getConfiguration('incoming.notifications');
+        const config = vscode.workspace.getConfiguration('inc0ming.notifications');
         if (!config.get<boolean>('enabled', true)) { return; }
 
         const warningDays = config.get<number>('warningDays', 7);
@@ -19,19 +19,19 @@ export class NotificationManager {
             if (days <= urgentDays) {
                 this.notifiedItems.add(item.id);
                 vscode.window.showWarningMessage(
-                    `Incoming URGENT: "${item.label}" is ${days === 0 ? 'today' : `in ${days} day(s)`}!`
+                    `Inc0ming URGENT: "${item.label}" is ${days === 0 ? 'today' : `in ${days} day(s)`}!`
                 );
             } else if (days <= warningDays) {
                 this.notifiedItems.add(item.id);
                 vscode.window.showInformationMessage(
-                    `Incoming: "${item.label}" is in ${days} day(s).`
+                    `Inc0ming: "${item.label}" is in ${days} day(s).`
                 );
             }
         }
     }
 
     getUpcomingCount(store: DataStore): number {
-        const config = vscode.workspace.getConfiguration('incoming.notifications');
+        const config = vscode.workspace.getConfiguration('inc0ming.notifications');
         const warningDays = config.get<number>('warningDays', 7);
 
         let count = 0;

@@ -25,22 +25,22 @@ export function activate(context: vscode.ExtensionContext) {
 
     // --- Commands ---
     context.subscriptions.push(
-        vscode.commands.registerCommand('incoming.refresh', () => {
+        vscode.commands.registerCommand('inc0ming.refresh', () => {
             store.load();
         }),
 
-        vscode.commands.registerCommand('incoming.openDashboard', () => {
+        vscode.commands.registerCommand('inc0ming.openDashboard', () => {
             DashboardPanel.createOrShow(context.extensionUri, store, context);
         }),
 
-        vscode.commands.registerCommand('incoming.addSwimlane', async () => {
+        vscode.commands.registerCommand('inc0ming.addSwimlane', async () => {
             const name = await vscode.window.showInputBox({ prompt: 'Swim lane name' });
             if (!name) { return; }
             store.addSwimlane(name);
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.addRadarItem', async (element?: any) => {
+        vscode.commands.registerCommand('inc0ming.addRadarItem', async (element?: any) => {
             let parentId: string | undefined;
 
             if (element) {
@@ -78,14 +78,14 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.addTodoSection', async () => {
+        vscode.commands.registerCommand('inc0ming.addTodoSection', async () => {
             const name = await vscode.window.showInputBox({ prompt: 'Section name' });
             if (!name) { return; }
             store.addTodoSection(name);
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.addTodo', async (element?: any) => {
+        vscode.commands.registerCommand('inc0ming.addTodo', async (element?: any) => {
             let sectionId: string | undefined;
 
             if (element) {
@@ -119,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.editItem', async (treeItem?: any) => {
+        vscode.commands.registerCommand('inc0ming.editItem', async (treeItem?: any) => {
             if (!treeItem) { return; }
             const element = resolveTreeElement(store, treeItem);
             if (!element) { return; }
@@ -186,7 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
-        vscode.commands.registerCommand('incoming.deleteItem', async (treeItem?: any) => {
+        vscode.commands.registerCommand('inc0ming.deleteItem', async (treeItem?: any) => {
             if (!treeItem) { return; }
             const element = resolveTreeElement(store, treeItem);
             if (!element) { return; }
@@ -211,7 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.toggleTodo', async (treeItem?: any) => {
+        vscode.commands.registerCommand('inc0ming.toggleTodo', async (treeItem?: any) => {
             if (!treeItem) { return; }
             const id = treeItem.id;
             if (id && store.toggleTodo(id)) {
@@ -219,7 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
-        vscode.commands.registerCommand('incoming.addQuote', async () => {
+        vscode.commands.registerCommand('inc0ming.addQuote', async () => {
             const text = await vscode.window.showInputBox({ prompt: 'Quote text' });
             if (!text) { return; }
             const attribution = await vscode.window.showInputBox({ prompt: 'Attribution (optional — leave blank for none)' });
@@ -227,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.editQuote', async (treeItem?: any) => {
+        vscode.commands.registerCommand('inc0ming.editQuote', async (treeItem?: any) => {
             if (!treeItem) { return; }
             const quote = store.findQuote(treeItem.id);
             if (!quote) { return; }
@@ -248,7 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('incoming.deleteQuote', async (treeItem?: any) => {
+        vscode.commands.registerCommand('inc0ming.deleteQuote', async (treeItem?: any) => {
             if (!treeItem) { return; }
             const quote = store.findQuote(treeItem.id);
             if (!quote) { return; }

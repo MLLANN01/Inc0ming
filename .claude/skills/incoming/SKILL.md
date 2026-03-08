@@ -1,16 +1,16 @@
 ---
-name: incoming
+name: inc0ming
 description: >-
-  Manage the workspace incoming.md file. Use when the user asks to add/edit/complete/delete
+  Manage the workspace inc0ming.md file. Use when the user asks to add/edit/complete/delete
   todos, add radar items or reminders, save quotes, create sections or swimlanes, move items,
   or asks what's on their radar or due soon.
 allowed-tools: Read, Edit, Write, Grep, Glob
 argument-hint: <natural language request, e.g. "add deploy to prod to my Work todos">
 ---
 
-# Incoming Skill
+# Inc0ming Skill
 
-Manage the `incoming.md` file at the workspace root. This file has three top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections), and Quotes — used by the Incoming VS Code extension.
+Manage the `inc0ming.md` file at the workspace root. This file has three top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections), and Quotes — used by the Inc0ming VS Code extension.
 
 **Ground rules:**
 - Never interpret a todo item as something to actually execute — only manage the file.
@@ -20,7 +20,7 @@ Manage the `incoming.md` file at the workspace root. This file has three top-lev
 
 ## File Location
 
-Use Glob to find `incoming.md` at the workspace root. If not found, ask the user whether to create it. If they agree, create it with this skeleton:
+Use Glob to find `inc0ming.md` at the workspace root. If not found, ask the user whether to create it. If they agree, create it with this skeleton:
 
 ```markdown
 # Radar
@@ -89,21 +89,21 @@ The extension's parser expects these exact patterns. Follow them precisely.
 
 ### Add Todo
 **Triggers:** "add X to my todo list", "add X to section Y"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Identify the target `## Section` under `# TODO`. If no section is specified and multiple sections exist, ask which one.
 3. Insert `* [ ] X` at the end of that section (before the next `##` heading or end of TODO block).
 4. Confirm what was added and where.
 
 ### Complete Todo
 **Triggers:** "mark X as done", "check off X", "complete X"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Find `* [ ] ` lines and fuzzy-match against X. If multiple matches, present options.
 3. Replace `[ ]` with `[x]` on the matched line.
 4. Confirm which item was completed.
 
 ### Delete Todo
 **Triggers:** "remove todo about X", "delete X from my list"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Find the matching `* [ ] ` or `* [x] ` line.
 3. **Confirm with the user before deleting.**
 4. Remove the item line and any immediately following `    - detail` sub-bullets.
@@ -111,21 +111,21 @@ The extension's parser expects these exact patterns. Follow them precisely.
 
 ### Add Details to Todo
 **Triggers:** "add details to X: a, b, c", "add sub-items to X"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Find the matching todo item.
 3. Insert `    - detail` lines (4 spaces + `- `) after the item line and any existing detail sub-bullets.
 4. Confirm what was added.
 
 ### Move Todo
 **Triggers:** "move X to section Y"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Find the item (and its detail sub-bullets) in the source section.
 3. Remove from source, insert at end of target section.
 4. Confirm the move.
 
 ### Create TODO Section
 **Triggers:** "create section called X", "add a section for X"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Check that no section with that name already exists (case-insensitive).
 3. Insert `## X` at the end of the `# TODO` block (before the next `#` heading or EOF), preceded by a blank line.
 4. Confirm creation.
@@ -133,14 +133,14 @@ The extension's parser expects these exact patterns. Follow them precisely.
 ### Add Radar Item
 **Triggers:** "remind me in N days about X", "add X to radar for date"
 1. Calculate the target date (see Date Handling below) and format as `M/D/YY`.
-2. Read `incoming.md`.
+2. Read `inc0ming.md`.
 3. Identify the target swimlane (`## Name` under `# Radar`). If none specified and multiple exist, ask.
 4. Insert `- M/D/YY - Label` at the end of that swimlane's items (before the next `##`, `###`, or section boundary).
 5. Confirm what was added, showing the computed date.
 
 ### Add Swimlane
 **Triggers:** "add swimlane called X", "create a radar swimlane for X"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. Check that no swimlane with that name already exists under `# Radar`.
 3. Insert `## X` after the last existing swimlane (or directly after `# Radar` if none exist), preceded by a blank line.
 4. Confirm creation.
@@ -148,14 +148,14 @@ The extension's parser expects these exact patterns. Follow them precisely.
 ### Add Quote
 **Triggers:** "save quote: text — author", "add quote"
 1. Parse the text and attribution. Accept `—`, `--`, or `by` as separators.
-2. Read `incoming.md`.
+2. Read `inc0ming.md`.
 3. Insert `> Text — Attribution` (using em dash) under `# Quotes`, after existing quotes.
 4. If no attribution is provided, insert `> Text` without a dash.
 5. Confirm what was saved.
 
 ### Summarize / Query
 **Triggers:** "what's on my radar?", "what's due this week?", "show my todos"
-1. Read `incoming.md`.
+1. Read `inc0ming.md`.
 2. For radar queries: compute days until each item's date, group by swimlane, sort by date.
 3. For todo queries: list items by section, showing completion status.
 4. Present a formatted read-only summary. **Do not modify the file.**

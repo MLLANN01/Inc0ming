@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { parseIncoming } from '../src/parsers/incomingParser';
 import { serializeIncoming } from '../src/serializers/incomingSerializer';
 
-suite('Incoming Serializer', () => {
+suite('Inc0ming Serializer', () => {
     test('round-trips basic radar + todo', () => {
         const input = `# Radar
 

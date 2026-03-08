@@ -28,10 +28,10 @@ export class DataStore implements vscode.Disposable {
     readonly onDidChange = this._onDidChange.event;
 
     constructor(workspaceRoot: string) {
-        this._filePath = path.join(workspaceRoot, 'incoming.md');
-        this._diagnostics = vscode.languages.createDiagnosticCollection('incoming');
+        this._filePath = path.join(workspaceRoot, 'inc0ming.md');
+        this._diagnostics = vscode.languages.createDiagnosticCollection('inc0ming');
 
-        const pattern = new vscode.RelativePattern(workspaceRoot, 'incoming.md');
+        const pattern = new vscode.RelativePattern(workspaceRoot, 'inc0ming.md');
         this._watcher = vscode.workspace.createFileSystemWatcher(pattern);
         this._watcher.onDidChange(() => this._onFileChange());
         this._watcher.onDidCreate(() => this._onFileChange());
@@ -336,7 +336,7 @@ export class DataStore implements vscode.Disposable {
             if (result.errors.length > 0) {
                 const count = result.errors.length;
                 vscode.window.showWarningMessage(
-                    `Incoming: ${count} parse issue${count > 1 ? 's' : ''} in incoming.md`,
+                    `Inc0ming: ${count} parse issue${count > 1 ? 's' : ''} in inc0ming.md`,
                     'Show File'
                 ).then(action => {
                     if (action === 'Show File') {
@@ -366,7 +366,7 @@ export class DataStore implements vscode.Disposable {
             );
             await new Promise(resolve => setTimeout(resolve, 100));
         } catch (err) {
-            vscode.window.showErrorMessage(`Incoming: Failed to save incoming.md`);
+            vscode.window.showErrorMessage(`Inc0ming: Failed to save inc0ming.md`);
         } finally {
             this._selfWriting = false;
         }

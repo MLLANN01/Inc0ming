@@ -4,7 +4,7 @@ import { DashboardPanel } from './dashboardPanel';
 import { daysUntil, formatDateMDYY, getUrgencyLevel } from '../utils/dateUtils';
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'incoming.statusView';
+    public static readonly viewType = 'inc0ming.statusView';
 
     private _view?: vscode.WebviewView;
     private readonly _extensionUri: vscode.Uri;
@@ -42,11 +42,11 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         this._disposables.push(changeListener);
 
         // Re-send data and auto-open dashboard when sidebar becomes visible;
-        // close dashboard when navigating away from Incoming
+        // close dashboard when navigating away from Inc0ming
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
                 this._sendData();
-                vscode.commands.executeCommand('incoming.openDashboard');
+                vscode.commands.executeCommand('inc0ming.openDashboard');
             } else {
                 DashboardPanel.currentPanel?.dispose();
             }
@@ -62,7 +62,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
         // Initial data push + auto-open dashboard
         this._sendData();
-        vscode.commands.executeCommand('incoming.openDashboard');
+        vscode.commands.executeCommand('inc0ming.openDashboard');
     }
 
     public refresh(): void {
@@ -72,7 +72,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private _sendData(): void {
         if (!this._view) { return; }
 
-        const config = vscode.workspace.getConfiguration('incoming.notifications');
+        const config = vscode.workspace.getConfiguration('inc0ming.notifications');
         const warningDays = config.get<number>('warningDays', 7);
         const urgentDays = config.get<number>('urgentDays', 1);
 
@@ -123,7 +123,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private _handleMessage(msg: any): void {
         switch (msg.type) {
             case 'openDashboard':
-                vscode.commands.executeCommand('incoming.openDashboard');
+                vscode.commands.executeCommand('inc0ming.openDashboard');
                 break;
         }
     }

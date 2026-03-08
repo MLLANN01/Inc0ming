@@ -1,13 +1,13 @@
 {
-  "name": "incoming",
-  "displayName": "Incoming",
+  "name": "inc0ming",
+  "displayName": "Inc0ming",
   "description": "Radar + Todo dashboard powered by markdown files",
   "version": "0.1.0",
   "publisher": "MLLANN01",
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MLLANN01/Incoming"
+    "url": "https://github.com/MLLANN01/Inc0ming"
   },
   "license": "ISC",
   "engines": {
@@ -15,130 +15,130 @@
   },
   "categories": ["Other"],
   "activationEvents": [
-    "workspaceContains:incoming.md"
+    "workspaceContains:inc0ming.md"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "incoming",
-          "title": "Incoming",
-          "icon": "media/incoming-icon.svg"
+          "id": "inc0ming",
+          "title": "Inc0ming",
+          "icon": "media/inc0ming-icon.svg"
         }
       ]
     },
     "views": {
-      "incoming": [
+      "inc0ming": [
         {
-          "id": "incoming.statusView",
-          "name": "Incoming",
+          "id": "inc0ming.statusView",
+          "name": "Inc0ming",
           "type": "webview"
         }
       ]
     },
     "commands": [
       {
-        "command": "incoming.refresh",
+        "command": "inc0ming.refresh",
         "title": "Refresh",
         "icon": "$(refresh)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.openDashboard",
+        "command": "inc0ming.openDashboard",
         "title": "Open Dashboard",
         "icon": "$(dashboard)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.addSwimlane",
+        "command": "inc0ming.addSwimlane",
         "title": "Add Swim Lane",
         "icon": "$(add)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.addRadarItem",
+        "command": "inc0ming.addRadarItem",
         "title": "Add Radar Item",
         "icon": "$(add)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.addTodo",
+        "command": "inc0ming.addTodo",
         "title": "Add Todo",
         "icon": "$(add)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.addTodoSection",
+        "command": "inc0ming.addTodoSection",
         "title": "Add Todo Section",
         "icon": "$(add)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.editItem",
+        "command": "inc0ming.editItem",
         "title": "Edit",
         "icon": "$(edit)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.deleteItem",
+        "command": "inc0ming.deleteItem",
         "title": "Delete",
         "icon": "$(trash)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.toggleTodo",
+        "command": "inc0ming.toggleTodo",
         "title": "Toggle Complete",
         "icon": "$(check)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.addQuote",
+        "command": "inc0ming.addQuote",
         "title": "Add Quote",
         "icon": "$(add)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.editQuote",
+        "command": "inc0ming.editQuote",
         "title": "Edit Quote",
         "icon": "$(edit)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       },
       {
-        "command": "incoming.deleteQuote",
+        "command": "inc0ming.deleteQuote",
         "title": "Delete Quote",
         "icon": "$(trash)",
-        "category": "Incoming"
+        "category": "Inc0ming"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "incoming.openDashboard",
-          "when": "view == incoming.statusView",
+          "command": "inc0ming.openDashboard",
+          "when": "view == inc0ming.statusView",
           "group": "navigation"
         },
         {
-          "command": "incoming.refresh",
-          "when": "view == incoming.statusView",
+          "command": "inc0ming.refresh",
+          "when": "view == inc0ming.statusView",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "Incoming",
+      "title": "Inc0ming",
       "properties": {
-        "incoming.notifications.enabled": {
+        "inc0ming.notifications.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable date-based notifications for radar items"
         },
-        "incoming.notifications.warningDays": {
+        "inc0ming.notifications.warningDays": {
           "type": "number",
           "default": 7,
           "description": "Days before a radar item date to show a warning notification"
         },
-        "incoming.notifications.urgentDays": {
+        "inc0ming.notifications.urgentDays": {
           "type": "number",
           "default": 1,
           "description": "Days before a radar item date to show an urgent notification"

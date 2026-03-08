@@ -13,8 +13,8 @@
 - Collapsible swimlane details and inspiration sections
 - Scanner sweep toggle
 - Layout persistence across sessions
-- File watcher for external `incoming.md` edits
+- File watcher for external `inc0ming.md` edits
 - Parse error diagnostics with line numbers
 - Sidebar webview with status and agenda
 - Date-based notification settings
-- Claude Code `/incoming` skill for natural language management
+- Claude Code `/inc0ming` skill for natural language management

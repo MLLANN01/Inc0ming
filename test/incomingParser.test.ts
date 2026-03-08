@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { parseIncoming } from '../src/parsers/incomingParser';
 
-suite('Incoming Parser', () => {
+suite('Inc0ming Parser', () => {
     const sampleIncoming = `# Radar
 
 ## Birthdays

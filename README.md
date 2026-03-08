@@ -1,6 +1,6 @@
-# Incoming
+# Inc0ming
 
-A VS Code extension that turns a simple `incoming.md` markdown file into an interactive radar + todo dashboard.
+A VS Code extension that turns a simple `inc0ming.md` markdown file into an interactive radar + todo dashboard.
 
 ![Radar Dashboard](./media/DemoImage1.png)
 
@@ -12,15 +12,15 @@ A VS Code extension that turns a simple `incoming.md` markdown file into an inte
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
-- **Markdown Powered** — All data lives in `incoming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
+- **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
 
 ## Getting Started
 
 1. Install the extension
-2. Create an `incoming.md` file in your workspace root (or let the extension create one)
-3. Click the Incoming icon in the activity bar, or run **Incoming: Open Dashboard** from the command palette
+2. Create an `inc0ming.md` file in your workspace root (or let the extension create one)
+3. Click the Inc0ming icon in the activity bar, or run **Inc0ming: Open Dashboard** from the command palette
 
-## incoming.md Format
+## inc0ming.md Format
 
 ```markdown
 # Radar
@@ -68,16 +68,16 @@ A VS Code extension that turns a simple `incoming.md` markdown file into an inte
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `incoming.notifications.enabled` | `true` | Enable date-based notifications for radar items |
-| `incoming.notifications.warningDays` | `7` | Days before a radar date to show a warning |
-| `incoming.notifications.urgentDays` | `1` | Days before a radar date to show an urgent notification |
+| `inc0ming.notifications.enabled` | `true` | Enable date-based notifications for radar items |
+| `inc0ming.notifications.warningDays` | `7` | Days before a radar date to show a warning |
+| `inc0ming.notifications.urgentDays` | `1` | Days before a radar date to show an urgent notification |
 
 ## Commands
 
-All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) under the **Incoming** category:
+All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) under the **Inc0ming** category:
 
 - **Open Dashboard** — Open the main radar + todo dashboard
-- **Refresh** — Reload data from `incoming.md`
+- **Refresh** — Reload data from `inc0ming.md`
 - **Add Swim Lane** / **Add Radar Item** / **Add Todo** / **Add Todo Section**
 - **Add Quote** / **Edit Quote** / **Delete Quote**
 - **Edit** / **Delete** / **Toggle Complete**

@@ -22,8 +22,8 @@ export class DashboardPanel {
         }
 
         const panel = vscode.window.createWebviewPanel(
-            'incomingDashboard',
-            'Incoming',
+            'inc0mingDashboard',
+            'Inc0ming',
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -65,11 +65,11 @@ export class DashboardPanel {
         this._panel.webview.postMessage({ type: 'quotesUpdate', data: this._store.quotes });
 
         // Send layout BEFORE todo data so GridManager has correct state when render() calls applyLayout()
-        const layout = this._context.workspaceState.get('incoming.gridLayout');
+        const layout = this._context.workspaceState.get('inc0ming.gridLayout');
         this._panel.webview.postMessage({ type: 'layoutUpdate', layout: layout || {} });
         this._panel.webview.postMessage({ type: 'todoUpdate', data: this._store.todo });
 
-        const radarVisible = this._context.workspaceState.get('incoming.radarVisible', true);
+        const radarVisible = this._context.workspaceState.get('inc0ming.radarVisible', true);
         this._panel.webview.postMessage({ type: 'radarVisibleUpdate', visible: radarVisible });
 
         if (this._store.errors.length > 0) {
@@ -95,10 +95,10 @@ export class DashboardPanel {
 
         switch (msg.type) {
             case 'saveLayout':
-                await this._context.workspaceState.update('incoming.gridLayout', msg.layout);
+                await this._context.workspaceState.update('inc0ming.gridLayout', msg.layout);
                 return; // Don't save store data for layout changes
             case 'saveRadarVisible':
-                await this._context.workspaceState.update('incoming.radarVisible', msg.visible);
+                await this._context.workspaceState.update('inc0ming.radarVisible', msg.visible);
                 return;
             case 'toggleTodo':
                 success = this._store.toggleTodo(msg.id);
@@ -196,7 +196,7 @@ export class DashboardPanel {
 </head>
 <body>
     <div class="dashboard-title-row">
-        <div class="dashboard-title">( Incoming )</div>
+        <div class="dashboard-title">( Inc0ming )</div>
         <button id="toggle-radar-btn" class="radar-toggle-btn" title="Toggle scanner">Scanner</button>
     </div>
 
