@@ -1,0 +1,15 @@
+.vscode/**
+.vscode-test/**
+src/**
+test/**
+testing/**
+node_modules/**
+out/test/**
+.gitignore
+tsconfig.json
+**/*.ts
+**/*.map
+braindump.txt
+.claude/**
+example.jpeg
+todoexample.jpeg

@@ -1,0 +1,214 @@
+:root {
+    --bg: var(--vscode-sideBar-background);
+    --surface: var(--vscode-editorWidget-background);
+    --text: var(--vscode-foreground);
+    --text-bright: var(--vscode-editor-foreground);
+    --text-dim: var(--vscode-descriptionForeground);
+    --cyan: var(--vscode-textLink-foreground);
+    --cyan-dim: var(--vscode-textLink-activeForeground);
+    --border: var(--vscode-editorWidget-border);
+    --urgent: var(--vscode-errorForeground);
+    --urgent-dim: color-mix(in srgb, var(--vscode-errorForeground) 60%, transparent);
+    --warning: var(--vscode-editorWarning-foreground);
+    --normal: var(--vscode-testing-iconPassed);
+    --progress-bg: var(--vscode-progressBar-background);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    padding: 8px;
+}
+
+#sidebar-root {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sidebar-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+/* ====== TODO PROGRESS ====== */
+.progress-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 10px;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.progress-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.progress-count {
+    color: var(--text-dim);
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.progress-fill.low {
+    background: var(--urgent);
+}
+
+.progress-fill.mid {
+    background: var(--warning);
+}
+
+.progress-fill.high {
+    background: var(--normal);
+}
+
+.progress-fill.done {
+    background: var(--cyan);
+}
+
+/* Overall summary */
+.status-summary {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ====== AGENDA ====== */
+.agenda-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.1s;
+}
+
+.agenda-item:hover {
+    background: var(--surface);
+}
+
+.agenda-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.agenda-dot.urgent {
+    background: var(--urgent);
+    box-shadow: 0 0 4px var(--urgent-dim);
+}
+
+.agenda-dot.warning {
+    background: var(--warning);
+}
+
+.agenda-dot.normal {
+    background: var(--cyan);
+}
+
+.agenda-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.agenda-days {
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.agenda-days.urgent {
+    color: var(--urgent);
+}
+
+.agenda-days.warning {
+    color: var(--warning);
+}
+
+.agenda-days.normal {
+    color: var(--text-dim);
+}
+
+.agenda-empty {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+    padding: 4px;
+}
+
+/* ====== OPEN DASHBOARD BUTTON ====== */
+#open-dashboard-btn {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+#open-dashboard-btn:hover {
+    background: var(--vscode-list-hoverBackground);
+    border-color: var(--cyan-dim);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}

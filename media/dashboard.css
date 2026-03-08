@@ -1,0 +1,1184 @@
+:root {
+    --bg: var(--vscode-editor-background);
+    --bg-deep: var(--vscode-input-background);
+    --surface: var(--vscode-editorWidget-background);
+    --surface-light: var(--vscode-list-hoverBackground);
+    --cyan: var(--vscode-textLink-foreground);
+    --cyan-dim: var(--vscode-textLink-activeForeground);
+    --cyan-glow: var(--vscode-focusBorder);
+    --text: var(--vscode-foreground);
+    --text-bright: var(--vscode-editor-foreground);
+    --text-dim: var(--vscode-descriptionForeground);
+    --border: var(--vscode-editorWidget-border);
+    --border-light: var(--vscode-panel-border);
+    --urgent: var(--vscode-errorForeground);
+    --urgent-dim: color-mix(in srgb, var(--vscode-errorForeground) 60%, transparent);
+    --warning: var(--vscode-editorWarning-foreground);
+    --normal: var(--vscode-testing-iconPassed);
+    --past: var(--vscode-disabledForeground);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    color-scheme: dark light;
+    border-left: 1px solid var(--border);
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
+}
+
+html, body {
+    scrollbar-width: none;
+}
+
+/* Date input theming — force dark calendar dropdown */
+input[type="date"] {
+    color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(2);
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* ====== TITLE ====== */
+.dashboard-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 18px 20px 10px;
+}
+
+.dashboard-title {
+    color: var(--cyan);
+    font-size: 16px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: none;
+}
+
+.radar-toggle-btn {
+    position: absolute;
+    right: 20px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.radar-toggle-btn:hover {
+    color: var(--text-bright);
+    border-color: var(--cyan-dim);
+}
+
+.radar-toggle-btn.active {
+    color: var(--cyan);
+    border-color: var(--cyan);
+}
+
+/* ====== QUOTE ====== */
+#quote-display {
+    text-align: center;
+    padding: 8px 20px 4px;
+    margin-bottom: 4px;
+    min-height: 20px;
+}
+
+.quote-text {
+    font-style: italic;
+    color: var(--text-bright);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.quote-attribution {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Quote management */
+#quotes-manage-container {
+    padding: 0 20px 8px;
+}
+
+#quotes-header {
+    text-align: left;
+}
+
+#quotes-body.collapsed {
+    display: none;
+}
+
+#quotes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.quote-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.quote-row-text {
+    flex: 1;
+    color: var(--text);
+    cursor: default;
+}
+
+.quote-row-text:hover {
+    color: var(--text-bright);
+}
+
+.quote-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.quote-row:hover .quote-delete-btn {
+    opacity: 1;
+}
+
+.quote-delete-btn:hover {
+    color: var(--urgent);
+}
+
+.quote-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--cyan-dim);
+    border-radius: 6px;
+}
+
+.quote-edit-form input {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.quote-edit-form input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.quote-edit-form .form-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.quote-edit-form .form-buttons button {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.quote-edit-form .form-buttons button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.quote-edit-form .form-buttons button.cancel-btn {
+    color: var(--text-dim);
+}
+
+#new-quote-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#new-quote-text {
+    flex: 2;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-quote-text:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#new-quote-attr {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-quote-attr:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#add-quote-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-quote-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+/* ====== RADAR ====== */
+#radar-container {
+    padding: 0 20px 16px;
+    position: relative;
+}
+
+#radar-canvas {
+    width: 100%;
+    display: block;
+    border-radius: 6px;
+    cursor: crosshair;
+}
+
+/* Radar legend */
+.radar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.radar-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.radar-legend .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot.urgent { background: var(--urgent); }
+.legend-dot.warning { background: var(--warning); }
+.legend-dot.normal { background: var(--cyan); }
+
+.legend-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.legend-toggle:hover {
+    color: var(--cyan);
+    border-color: var(--cyan-dim);
+}
+
+.legend-toggle.active {
+    color: var(--cyan);
+    border-color: var(--cyan);
+}
+
+.tooltip {
+    position: absolute;
+    background: var(--surface);
+    color: var(--cyan);
+    border: 1px solid var(--cyan-dim);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+}
+
+.tooltip.hidden { display: none; }
+
+/* Edit popover */
+.popover {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--cyan-dim);
+    padding: 12px;
+    border-radius: 6px;
+    z-index: 200;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+.popover.hidden { display: none; }
+
+.popover input {
+    display: block;
+    width: 200px;
+    margin-bottom: 8px;
+    padding: 5px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.popover input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.popover-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.popover-buttons button {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid var(--cyan-dim);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.popover-buttons button:hover {
+    background: var(--cyan-dim);
+    color: var(--bg-deep);
+}
+
+/* ====== SWIM LANE DETAILS ====== */
+#swimlane-details-container {
+    padding: 0 20px 16px;
+}
+
+#swimlane-details-header {
+    text-align: left;
+}
+
+.section-header {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-align: right;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.section-header.collapsible {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+}
+
+.section-header.collapsible:hover {
+    color: var(--text-bright);
+}
+
+.collapse-chevron {
+    font-size: 9px;
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.collapse-chevron.open {
+    transform: rotate(0deg);
+}
+
+.collapse-chevron.closed {
+    transform: rotate(-90deg);
+}
+
+#swimlane-details-body {
+    overflow: hidden;
+}
+
+#swimlane-details-body.collapsed {
+    display: none;
+}
+
+.swimlane-cards {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+}
+
+.swimlane-cards::-webkit-scrollbar {
+    display: none;
+}
+
+.swimlane-card {
+    flex: 0 0 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    position: relative;
+}
+
+.swimlane-card.dragging {
+    opacity: 0.4;
+}
+
+.swimlane-card.drag-over-left {
+    border-left: 2px solid var(--cyan);
+}
+
+.swimlane-card.drag-over-right {
+    border-right: 2px solid var(--cyan);
+}
+
+.swimlane-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.swimlane-card-title {
+    color: var(--text-bright);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.swimlane-card-title .chevron {
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+}
+
+.swimlane-card-title .chevron.open {
+    transform: rotate(180deg);
+}
+
+.swimlane-card .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.swimlane-card .close-btn:hover {
+    color: var(--urgent);
+}
+
+.swimlane-card-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.swimlane-card-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    padding: 3px 0;
+}
+
+.swimlane-card-item .item-subgroup {
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 6px;
+    margin-bottom: 2px;
+    flex: 1;
+}
+
+.subgroup-header .item-subgroup {
+    cursor: pointer;
+}
+
+.subgroup-header .item-subgroup:hover {
+    color: var(--text-bright);
+}
+
+.sg-add-date-btn {
+    padding-left: 8px;
+    font-size: 11px;
+}
+
+.swimlane-card-item .item-label {
+    color: var(--text);
+    cursor: default;
+}
+
+.swimlane-card-item .item-label:hover {
+    color: var(--text-bright);
+}
+
+.swimlane-card-item .item-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.swimlane-card-item:hover .item-delete-btn {
+    opacity: 1;
+}
+
+.swimlane-card-item .item-delete-btn:hover {
+    color: var(--urgent);
+}
+
+.swimlane-card-item .item-date {
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.swimlane-card-item .days-away {
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.days-away.urgent { color: var(--urgent); }
+.days-away.warning { color: var(--warning); }
+.days-away.normal { color: var(--normal); }
+.days-away.past { color: var(--past); }
+
+.swimlane-card .add-date-btn {
+    display: block;
+    margin-top: 8px;
+    background: none;
+    border: none;
+    color: var(--cyan-dim);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
+.swimlane-card .add-date-btn:hover {
+    color: var(--cyan);
+}
+
+/* Inline add-date form inside swimlane card */
+.add-date-form {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.add-date-form.hidden { display: none; }
+
+.add-date-form input {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.add-date-form input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.add-date-form .form-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.add-date-form .form-buttons button {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.add-date-form .form-buttons button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.add-date-form .form-buttons button.cancel-btn {
+    color: var(--text-dim);
+}
+
+.swimlane-card .add-date-btn:hover {
+    color: var(--cyan);
+}
+
+.swimlane-card .card-scroll-indicator {
+    display: flex;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.swimlane-card .card-scroll-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--cyan-dim);
+    border-radius: 50%;
+}
+
+/* New swimlane input */
+#new-swimlane-row {
+    padding: 0 0 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#new-swimlane-input {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-swimlane-input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#add-swimlane-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-swimlane-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+#add-todo-top-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-todo-top-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+/* ====== TODO GRID HEADER ====== */
+#todo-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px 10px;
+}
+
+#todo-grid-header .section-header {
+    margin-bottom: 0;
+}
+
+/* ====== TODO WIDGET GRID ====== */
+#todo-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+    padding: 0 20px 20px;
+}
+
+/* Widget card */
+.grid-widget {
+    grid-column: span 6;
+    height: 300px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow 0.15s;
+}
+
+.grid-widget:hover {
+    box-shadow: 0 0 0 1px var(--border-light);
+}
+
+/* Drag handle header */
+.widget-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.widget-header:active {
+    cursor: grabbing;
+}
+
+.widget-title {
+    flex: 1;
+    color: var(--text-bright);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: default;
+}
+
+.widget-title:hover {
+    color: var(--cyan);
+}
+
+.widget-header .section-add-btn {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.widget-header:hover .section-add-btn {
+    opacity: 1;
+}
+
+.widget-header .section-delete-btn {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.widget-header:hover .section-delete-btn {
+    opacity: 1;
+}
+
+/* Scrollable body */
+.widget-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+/* Resize handle */
+.widget-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+}
+
+.widget-resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    opacity: 0.5;
+}
+
+.grid-widget:hover .widget-resize-handle::after {
+    opacity: 1;
+    border-color: var(--text-dim);
+}
+
+/* Drop placeholder during drag */
+.grid-drop-placeholder {
+    border: 2px dashed var(--cyan-dim);
+    border-radius: 8px;
+    background: transparent;
+    min-height: 100px;
+}
+
+/* Drag ghost */
+.widget-drag-ghost {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Inline detail expansion */
+.todo-item-details {
+    padding: 4px 10px 8px 32px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.todo-item-details .detail-bullet {
+    padding: 2px 0;
+    color: var(--text);
+}
+
+.todo-item-details .detail-bullet::before {
+    content: '  \2022  ';
+    color: var(--cyan-dim);
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    gap: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.todo-item:hover {
+    background: var(--surface);
+}
+
+.todo-item.selected {
+    background: var(--surface-light);
+    border-left: 2px solid var(--cyan);
+}
+
+.todo-item input[type="checkbox"] {
+    accent-color: var(--cyan);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.todo-item .todo-text {
+    flex: 1;
+    cursor: pointer;
+    padding: 1px 0;
+    color: var(--text);
+}
+
+.todo-item .todo-text:hover {
+    color: var(--text-bright);
+}
+
+.todo-item.completed .todo-text {
+    text-decoration: line-through;
+    color: var(--text-dim);
+}
+
+.todo-item .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.todo-item:hover .close-btn {
+    opacity: 1;
+}
+
+.todo-item .close-btn:hover {
+    color: var(--urgent);
+}
+
+
+/* Drag-and-drop feedback */
+.todo-item.dragging {
+    opacity: 0.4;
+}
+
+.grid-widget.drag-over {
+    border: 1px solid var(--cyan-dim);
+    box-shadow: 0 0 8px var(--cyan-glow);
+}
+
+.drop-indicator {
+    display: none;
+    height: 2px;
+    background: var(--cyan);
+    border-radius: 1px;
+    margin: 0 10px;
+    pointer-events: none;
+}
+
+/* Section buttons (used in widget headers) */
+.section-add-btn {
+    background: none;
+    border: none;
+    color: var(--cyan-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+}
+
+.section-add-btn:hover {
+    color: var(--cyan);
+}
+
+.section-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+}
+
+.section-delete-btn:hover {
+    color: var(--urgent);
+}
+
+/* Per-section add form */
+.section-add-form {
+    display: flex;
+    gap: 8px;
+    padding: 4px 10px;
+    margin-top: 4px;
+}
+
+.section-add-form.hidden { display: none; }
+
+.section-add-form input {
+    flex: 1;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.section-add-form input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.section-add-form button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.section-add-form button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.section-add-form button.cancel-btn {
+    color: var(--text-dim);
+}
+
+/* New section input */
+#new-section-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 0 20px 12px;
+}
+
+#new-section-input {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-section-input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#add-section-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-section-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+/* ====== AI ASSIST IDEAS ====== */
+#ai-assist-container {
+    flex: 0 0 220px;
+}
+
+.ai-assist-header {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.ai-idea-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.ai-idea-item:hover {
+    border-color: var(--cyan-dim);
+    color: var(--text-bright);
+}
+
+.ai-idea-item .idea-subtitle {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+/* Inline editing */
+.inline-edit {
+    background: var(--bg-deep);
+    border: 1px solid var(--cyan-dim);
+    color: var(--text);
+    font-size: inherit;
+    font-family: inherit;
+    padding: 2px 6px;
+    border-radius: 3px;
+    width: 100%;
+}
+
+.inline-edit:focus {
+    outline: none;
+    border-color: var(--cyan);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}

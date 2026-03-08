@@ -1,0 +1,167 @@
+{
+  "name": "incoming",
+  "displayName": "Incoming",
+  "description": "Radar + Todo dashboard powered by markdown files",
+  "version": "0.1.0",
+  "publisher": "MLLANN01",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MLLANN01/Incoming"
+  },
+  "license": "ISC",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "workspaceContains:incoming.md"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "incoming",
+          "title": "Incoming",
+          "icon": "media/incoming-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "incoming": [
+        {
+          "id": "incoming.statusView",
+          "name": "Incoming",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "incoming.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.openDashboard",
+        "title": "Open Dashboard",
+        "icon": "$(dashboard)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.addSwimlane",
+        "title": "Add Swim Lane",
+        "icon": "$(add)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.addRadarItem",
+        "title": "Add Radar Item",
+        "icon": "$(add)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.addTodo",
+        "title": "Add Todo",
+        "icon": "$(add)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.addTodoSection",
+        "title": "Add Todo Section",
+        "icon": "$(add)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.editItem",
+        "title": "Edit",
+        "icon": "$(edit)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.deleteItem",
+        "title": "Delete",
+        "icon": "$(trash)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.toggleTodo",
+        "title": "Toggle Complete",
+        "icon": "$(check)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.addQuote",
+        "title": "Add Quote",
+        "icon": "$(add)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.editQuote",
+        "title": "Edit Quote",
+        "icon": "$(edit)",
+        "category": "Incoming"
+      },
+      {
+        "command": "incoming.deleteQuote",
+        "title": "Delete Quote",
+        "icon": "$(trash)",
+        "category": "Incoming"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "incoming.openDashboard",
+          "when": "view == incoming.statusView",
+          "group": "navigation"
+        },
+        {
+          "command": "incoming.refresh",
+          "when": "view == incoming.statusView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Incoming",
+      "properties": {
+        "incoming.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable date-based notifications for radar items"
+        },
+        "incoming.notifications.warningDays": {
+          "type": "number",
+          "default": 7,
+          "description": "Days before a radar item date to show a warning notification"
+        },
+        "incoming.notifications.urgentDays": {
+          "type": "number",
+          "default": 1,
+          "description": "Days before a radar item date to show an urgent notification"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "npx mocha --ui tdd ./out/test/**/*.test.js",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.0.0",
+    "@types/mocha": "^10.0.0",
+    "@types/glob": "^8.0.0",
+    "@vscode/test-electron": "^2.3.0",
+    "typescript": "^5.3.0",
+    "mocha": "^10.2.0",
+    "glob": "^10.0.0"
+  }
+}
