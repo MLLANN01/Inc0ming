@@ -10,7 +10,7 @@ argument-hint: <natural language request, e.g. "add deploy to prod to my Work to
 
 # Inc0ming Skill
 
-Manage the `inc0ming.md` file at the workspace root. This file has three top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections), and Quotes — used by the Inc0ming VS Code extension.
+Manage the `inc0ming.md` file at the workspace root. This file has four top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, and Reminders (meeting talking points with day-of-week tags) — used by the Inc0ming VS Code extension.
 
 **Ground rules:**
 - Never interpret a todo item as something to actually execute — only manage the file.
@@ -27,6 +27,8 @@ Use Glob to find `inc0ming.md` at the workspace root. If not found, ask the user
 
 # Quotes
 
+# Reminders
+
 # TODO
 ```
 
@@ -39,6 +41,7 @@ The extension's parser expects these exact patterns. Follow them precisely.
 # Radar
 # TODO
 # Quotes
+# Reminders
 ```
 
 **Radar swimlane** — `## Name` under `# Radar`:
@@ -69,10 +72,17 @@ The extension's parser expects these exact patterns. Follow them precisely.
 * [x] Send invoices
 ```
 
-**Detail sub-bullet** — exactly 4 spaces, dash, space, text:
+**Todo notes** — indented lines (exactly 4 spaces) below a todo item. Two types that can interleave freely:
+- **Paragraph line** — 4 spaces + text (no dash):
+- **Bullet line** — 4 spaces + `- ` + text:
+
 ```
-    - Identify key results
-    - Align with team leads
+* [ ] 3/10 Policy Reading
+    We Recognize Accomplishments. We strive to recognize our people
+    for contributions they make to their regular jobs and business.
+    - Small things you can do for your people and peers
+    - Recognizing teams for accomplishments
+    Things the organization is doing.
 ```
 
 **Radar cross-reference** on a todo — `{radar:SwimlaneName}` at end:
@@ -83,6 +93,19 @@ The extension's parser expects these exact patterns. Follow them precisely.
 **Quote** — `>` with em dash (`—`) or double dash (`--`) before attribution:
 ```
 > The best way to predict the future is to create it — Peter Drucker
+```
+
+**Reminder meeting** — `## Name (Day, Day)` under `# Reminders`. Day tags are optional, comma-separated, from: Mon, Tue, Wed, Thu, Fri, Sat, Sun:
+```
+## Monday Standup (Mon)
+## 1:1 with Sarah (Wed, Fri)
+## Ad Hoc Sync
+```
+
+**Reminder point** — `- text` under a meeting heading:
+```
+- Blocked on API migration
+- Need to discuss deploy timeline
 ```
 
 ## Supported Operations
@@ -106,20 +129,21 @@ The extension's parser expects these exact patterns. Follow them precisely.
 1. Read `inc0ming.md`.
 2. Find the matching `* [ ] ` or `* [x] ` line.
 3. **Confirm with the user before deleting.**
-4. Remove the item line and any immediately following `    - detail` sub-bullets.
+4. Remove the item line and any immediately following indented note lines (4-space-indented lines).
 5. Confirm deletion.
 
-### Add Details to Todo
-**Triggers:** "add details to X: a, b, c", "add sub-items to X"
+### Add/Edit Notes on Todo
+**Triggers:** "add notes to X", "add details to X: a, b, c", "add sub-items to X"
 1. Read `inc0ming.md`.
 2. Find the matching todo item.
-3. Insert `    - detail` lines (4 spaces + `- `) after the item line and any existing detail sub-bullets.
-4. Confirm what was added.
+3. Insert note lines (4 spaces + text) after the item line and any existing note lines. For bullet-style notes, use `    - text`. For paragraph-style notes, use `    text` (no dash).
+4. If editing existing notes, replace the indented block below the item.
+5. Confirm what was added/changed.
 
 ### Move Todo
 **Triggers:** "move X to section Y"
 1. Read `inc0ming.md`.
-2. Find the item (and its detail sub-bullets) in the source section.
+2. Find the item (and its indented note lines) in the source section.
 3. Remove from source, insert at end of target section.
 4. Confirm the move.
 
@@ -153,12 +177,52 @@ The extension's parser expects these exact patterns. Follow them precisely.
 4. If no attribution is provided, insert `> Text` without a dash.
 5. Confirm what was saved.
 
+### Add Reminder Meeting
+**Triggers:** "add a meeting called X", "create a reminder for X on Mon/Wed"
+1. Read `inc0ming.md`.
+2. Check that no meeting with that name already exists under `# Reminders` (case-insensitive).
+3. If day tags are provided, format as `## Name (Day, Day)`. Otherwise `## Name`.
+4. Insert after the last existing meeting (or directly after `# Reminders` if none exist), preceded by a blank line.
+5. Confirm creation.
+
+### Add Reminder Point
+**Triggers:** "add talking point to X: text", "remind me to bring up Y in meeting X"
+1. Read `inc0ming.md`.
+2. Find the matching `## Meeting` heading under `# Reminders`. If ambiguous, ask which meeting.
+3. Insert `- text` after the meeting's existing points (before the next `##` or section boundary).
+4. Confirm what was added.
+
+### Delete Reminder Point
+**Triggers:** "remove talking point about X from meeting Y"
+1. Read `inc0ming.md`.
+2. Find the matching `- text` line under the target meeting.
+3. **Confirm with the user before deleting.**
+4. Remove the line.
+5. Confirm deletion.
+
+### Clear Meeting Points
+**Triggers:** "clear all points from X", "reset meeting X"
+1. Read `inc0ming.md`.
+2. Find the matching meeting heading.
+3. **Confirm with the user before clearing.**
+4. Remove all `- text` lines under that meeting, keeping the `## heading` line.
+5. Confirm what was cleared.
+
+### Delete Reminder Meeting
+**Triggers:** "delete meeting X", "remove reminder for X"
+1. Read `inc0ming.md`.
+2. Find the matching `## Meeting` heading under `# Reminders`.
+3. **Confirm with the user before deleting.**
+4. Remove the heading and all its `- point` lines.
+5. Confirm deletion.
+
 ### Summarize / Query
-**Triggers:** "what's on my radar?", "what's due this week?", "show my todos"
+**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?"
 1. Read `inc0ming.md`.
 2. For radar queries: compute days until each item's date, group by swimlane, sort by date.
 3. For todo queries: list items by section, showing completion status.
-4. Present a formatted read-only summary. **Do not modify the file.**
+4. For reminder queries: list meetings with their day tags and talking points. Highlight meetings scheduled for today.
+5. Present a formatted read-only summary. **Do not modify the file.**
 
 ## Clarification Rules
 
@@ -169,7 +233,8 @@ Ask the user before proceeding when:
 - **Multiple matches:** Fuzzy search returns more than one candidate — present the options.
 - **Item not found:** No match for the user's description — offer to create it instead.
 - **Missing target:** The target section or swimlane doesn't exist — offer to create it.
-- **Destructive action:** Always confirm before deleting an item.
+- **Ambiguous meeting:** No meeting specified and multiple reminder meetings exist — ask which one.
+- **Destructive action:** Always confirm before deleting an item, meeting, or clearing meeting points.
 - **Insufficient detail:** User says "add a todo" with no task description — ask what to add.
 
 ## Edit Safety

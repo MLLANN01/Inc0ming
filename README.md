@@ -11,6 +11,8 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 - **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days)
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
+- **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
+- **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
 - **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
 
@@ -38,12 +40,23 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 
 > The best way to predict the future is to create it — Peter Drucker
 
+# Reminders
+
+## Monday Standup (Mon)
+- Blocked on API migration
+- Need to discuss deploy timeline
+
+## 1:1 with Sarah (Wed, Fri)
+- Ask about promotion timeline
+
 # TODO
 
 ## This Week
 * [ ] Review pull requests
-    - Check test coverage
+    Check test coverage across all modules.
     - Verify API changes
+    - Review error handling
+    We need to finalize before the release.
 * [x] Update dependencies
 
 ## Backlog
@@ -60,9 +73,12 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 | Radar item | `- M/D/YY - Label` (no leading zeros, 2-digit year) |
 | Todo section | `## Name` under `# TODO` |
 | Todo item | `* [ ] Text` or `* [x] Text` |
-| Todo detail | `    - Detail` (4 spaces indent) |
+| Todo note (paragraph) | `    Text` (4 spaces indent, no dash) |
+| Todo note (bullet) | `    - Text` (4 spaces indent + dash) |
 | Radar link | `* [ ] Text {radar:Swimlane}` |
 | Quote | `> Text — Attribution` (em dash or `--`) |
+| Reminder meeting | `## Name (Day, Day)` under `# Reminders` |
+| Reminder point | `- Text` under a meeting heading |
 
 ## Configuration
 
@@ -80,6 +96,7 @@ All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Refresh** — Reload data from `inc0ming.md`
 - **Add Swim Lane** / **Add Radar Item** / **Add Todo** / **Add Todo Section**
 - **Add Quote** / **Edit Quote** / **Delete Quote**
+- **Add Meeting** / **Add Talking Point**
 - **Edit** / **Delete** / **Toggle Complete**
 
 ## Building from Source

@@ -5,6 +5,7 @@ import {
     RadarData, RadarSwimlane, RadarSubGroup, RadarItem,
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
+    ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     ParseResult, ParseError, UnparsedLine,
     generateId,
 } from '../models/types';
@@ -16,6 +17,7 @@ export class DataStore implements vscode.Disposable {
     private _radar: RadarData = { swimlanes: [] };
     private _todo: TodoData = { sections: [] };
     private _quotes: QuoteData = { items: [] };
+    private _reminders: ReminderData = { meetings: [] };
     private _errors: ParseError[] = [];
     private _unparsedLines: UnparsedLine[] = [];
     private _filePath: string;
@@ -42,6 +44,7 @@ export class DataStore implements vscode.Disposable {
     get radar(): RadarData { return this._radar; }
     get todo(): TodoData { return this._todo; }
     get quotes(): QuoteData { return this._quotes; }
+    get reminders(): ReminderData { return this._reminders; }
     get errors(): ParseError[] { return this._errors; }
     get filePath(): string { return this._filePath; }
 
@@ -247,7 +250,7 @@ export class DataStore implements vscode.Disposable {
             id: generateId('td'),
             text,
             completed: false,
-            details: [],
+            notes: '',
             radarLink,
         };
         section.items.push(item);
@@ -258,6 +261,13 @@ export class DataStore implements vscode.Disposable {
         const item = this.findTodo(id);
         if (!item) { return false; }
         item.text = text;
+        return true;
+    }
+
+    editTodoNotes(id: string, notes: string): boolean {
+        const item = this.findTodo(id);
+        if (!item) { return false; }
+        item.notes = notes;
         return true;
     }
 
@@ -327,6 +337,81 @@ export class DataStore implements vscode.Disposable {
         return true;
     }
 
+    // --- Reminder queries ---
+    findMeeting(id: string): ReminderMeeting | undefined {
+        return this._reminders.meetings.find(m => m.id === id);
+    }
+
+    findPoint(id: string): { point: ReminderPoint; meeting: ReminderMeeting } | undefined {
+        for (const meeting of this._reminders.meetings) {
+            const point = meeting.points.find(p => p.id === id);
+            if (point) { return { point, meeting }; }
+        }
+        return undefined;
+    }
+
+    // --- Reminder mutations ---
+    addMeeting(name: string, days: DayOfWeek[]): ReminderMeeting {
+        const meeting: ReminderMeeting = {
+            kind: 'reminderMeeting',
+            id: generateId('rm'),
+            name,
+            days,
+            points: [],
+        };
+        this._reminders.meetings.push(meeting);
+        return meeting;
+    }
+
+    renameMeeting(id: string, name: string, days: DayOfWeek[]): boolean {
+        const meeting = this.findMeeting(id);
+        if (!meeting) { return false; }
+        meeting.name = name;
+        meeting.days = days;
+        return true;
+    }
+
+    deleteMeeting(id: string): boolean {
+        const idx = this._reminders.meetings.findIndex(m => m.id === id);
+        if (idx < 0) { return false; }
+        this._reminders.meetings.splice(idx, 1);
+        return true;
+    }
+
+    addPoint(meetingId: string, text: string): ReminderPoint | undefined {
+        const meeting = this.findMeeting(meetingId);
+        if (!meeting) { return undefined; }
+        const point: ReminderPoint = {
+            kind: 'reminderPoint',
+            id: generateId('rp'),
+            text,
+        };
+        meeting.points.push(point);
+        return point;
+    }
+
+    editPoint(id: string, text: string): boolean {
+        const result = this.findPoint(id);
+        if (!result) { return false; }
+        result.point.text = text;
+        return true;
+    }
+
+    deletePoint(id: string): boolean {
+        for (const meeting of this._reminders.meetings) {
+            const idx = meeting.points.findIndex(p => p.id === id);
+            if (idx >= 0) { meeting.points.splice(idx, 1); return true; }
+        }
+        return false;
+    }
+
+    clearMeeting(id: string): boolean {
+        const meeting = this.findMeeting(id);
+        if (!meeting) { return false; }
+        meeting.points = [];
+        return true;
+    }
+
     // --- File I/O ---
     load(): void {
         try {
@@ -349,6 +434,7 @@ export class DataStore implements vscode.Disposable {
             this._radar = { swimlanes: [] };
             this._todo = { sections: [] };
             this._quotes = { items: [] };
+            this._reminders = { meetings: [] };
             this._errors = [];
             this._unparsedLines = [];
         }
@@ -356,7 +442,7 @@ export class DataStore implements vscode.Disposable {
     }
 
     async save(): Promise<void> {
-        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes);
+        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
         try {
@@ -378,6 +464,7 @@ export class DataStore implements vscode.Disposable {
         this._radar = result.radar;
         this._todo = result.todo;
         this._quotes = result.quotes;
+        this._reminders = result.reminders;
         this._errors = result.errors;
         this._unparsedLines = result.unparsedLines;
         this._updateDiagnostics();

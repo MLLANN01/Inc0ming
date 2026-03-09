@@ -3,7 +3,8 @@ import { DataStore } from './services/dataStore';
 import { DashboardPanel } from './panels/dashboardPanel';
 import { SidebarViewProvider } from './panels/sidebarViewProvider';
 import { NotificationManager } from './utils/notifications';
-import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem } from './models/types';
+import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem, ReminderMeeting } from './models/types';
+import { parseDayTags } from './parsers/incomingParser';
 import { formatDateMDYY } from './utils/dateUtils';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -245,6 +246,45 @@ export function activate(context: vscode.ExtensionContext) {
             if (attribution === undefined) { return; }
 
             store.editQuote(quote.id, text, attribution || undefined);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.addMeeting', async () => {
+            const name = await vscode.window.showInputBox({ prompt: 'Meeting name' });
+            if (!name) { return; }
+            const daysStr = await vscode.window.showInputBox({
+                prompt: 'Days (e.g. Mon, Wed, Fri)',
+                placeHolder: 'Mon, Wed, Fri',
+            });
+            const days = parseDayTags(daysStr || '');
+            store.addMeeting(name, days);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.addPoint', async () => {
+            const meetings = store.reminders.meetings;
+            if (meetings.length === 0) {
+                vscode.window.showWarningMessage('Add a meeting first.');
+                return;
+            }
+            let meetingId: string;
+            if (meetings.length === 1) {
+                meetingId = meetings[0].id;
+            } else {
+                const pick = await vscode.window.showQuickPick(
+                    meetings.map(m => ({
+                        label: m.name + (m.days.length ? ' (' + m.days.join(', ') + ')' : ''),
+                        id: m.id,
+                    })),
+                    { placeHolder: 'Select meeting' }
+                );
+                if (!pick) { return; }
+                meetingId = pick.id;
+            }
+
+            const text = await vscode.window.showInputBox({ prompt: 'Talking point' });
+            if (!text) { return; }
+            store.addPoint(meetingId, text);
             await store.save();
         }),
 

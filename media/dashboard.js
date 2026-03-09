@@ -28,6 +28,9 @@
             case 'quotesUpdate':
                 window.QuoteRenderer.setData(msg.data);
                 break;
+            case 'remindersUpdate':
+                window.ReminderRenderer.setData(msg.data);
+                break;
             case 'layoutUpdate':
                 currentLayout = msg.layout || {};
                 if (window.GridManager) {
@@ -239,7 +242,41 @@
                 var chevron = document.createElement('span');
                 chevron.className = 'chevron open';
                 chevron.textContent = '\u25bc';
-                titleEl.appendChild(document.createTextNode(swimlane.name));
+                var nameSpan = document.createElement('span');
+                nameSpan.textContent = swimlane.name;
+
+                // Double-click name to rename swimlane
+                nameSpan.addEventListener('dblclick', function (e) {
+                    e.stopPropagation();
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'inline-edit';
+                    input.value = swimlane.name;
+                    nameSpan.replaceWith(input);
+                    input.focus();
+                    input.select();
+
+                    function save() {
+                        var newName = input.value.trim();
+                        if (newName && newName !== swimlane.name) {
+                            vscode.postMessage({
+                                type: 'renameSwimlane',
+                                id: swimlane.id,
+                                name: newName,
+                            });
+                        }
+                        input.replaceWith(nameSpan);
+                        nameSpan.textContent = newName || swimlane.name;
+                    }
+
+                    input.addEventListener('blur', save);
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') { save(); }
+                        if (e.key === 'Escape') { input.replaceWith(nameSpan); }
+                    });
+                });
+
+                titleEl.appendChild(nameSpan);
                 titleEl.appendChild(chevron);
 
                 var closeBtn = document.createElement('button');
@@ -323,9 +360,12 @@
                 var itemsContainer = document.createElement('div');
                 itemsContainer.className = 'swimlane-card-items';
 
-                // Direct items
-                for (var ii = 0; ii < swimlane.items.length; ii++) {
-                    itemsContainer.appendChild(createItemRow(swimlane.items[ii]));
+                // Direct items (sorted by date)
+                var sortedItems = swimlane.items.slice().sort(function (a, b) {
+                    return new Date(a.date) - new Date(b.date);
+                });
+                for (var ii = 0; ii < sortedItems.length; ii++) {
+                    itemsContainer.appendChild(createItemRow(sortedItems[ii]));
                 }
 
                 // Sub-groups
@@ -385,9 +425,12 @@
                         sgLabel.appendChild(sgDelBtn);
                         itemsContainer.appendChild(sgLabel);
 
-                        // Sub-group items
-                        for (var sgii = 0; sgii < sg.items.length; sgii++) {
-                            itemsContainer.appendChild(createItemRow(sg.items[sgii]));
+                        // Sub-group items (sorted by date)
+                        var sortedSgItems = sg.items.slice().sort(function (a, b) {
+                            return new Date(a.date) - new Date(b.date);
+                        });
+                        for (var sgii = 0; sgii < sortedSgItems.length; sgii++) {
+                            itemsContainer.appendChild(createItemRow(sortedSgItems[sgii]));
                         }
 
                         // Add-date form for this sub-group
@@ -604,6 +647,53 @@
         addQuoteBtn.addEventListener('click', submitQuote);
     }
 
+    // ====== REMINDERS COLLAPSE + ADD MEETING ======
+    var remindersHeader = document.getElementById('reminders-header');
+    var remindersBody = document.getElementById('reminders-body');
+    if (remindersHeader && remindersBody) {
+        remindersHeader.addEventListener('click', function () {
+            var chevron = remindersHeader.querySelector('.collapse-chevron');
+            var collapsed = remindersBody.classList.toggle('collapsed');
+            if (chevron) {
+                chevron.classList.toggle('open', !collapsed);
+                chevron.classList.toggle('closed', collapsed);
+            }
+        });
+    }
+
+    var newMeetingName = document.getElementById('new-meeting-name');
+    var newMeetingDays = document.getElementById('new-meeting-days');
+    var addMeetingBtn = document.getElementById('add-meeting-btn');
+
+    function submitMeeting() {
+        if (!newMeetingName) { return; }
+        var name = newMeetingName.value.trim();
+        if (name) {
+            var days = newMeetingDays ? newMeetingDays.value.trim() : '';
+            vscode.postMessage({
+                type: 'addMeeting',
+                name: name,
+                days: days,
+            });
+            newMeetingName.value = '';
+            if (newMeetingDays) { newMeetingDays.value = ''; }
+        }
+    }
+
+    if (newMeetingName) {
+        newMeetingName.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { submitMeeting(); }
+        });
+    }
+    if (newMeetingDays) {
+        newMeetingDays.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { submitMeeting(); }
+        });
+    }
+    if (addMeetingBtn) {
+        addMeetingBtn.addEventListener('click', submitMeeting);
+    }
+
     // ====== SWIM LANE DETAILS COLLAPSE ======
     var slHeader = document.getElementById('swimlane-details-header');
     var slBody = document.getElementById('swimlane-details-body');
@@ -611,6 +701,20 @@
         slHeader.addEventListener('click', function () {
             var chevron = slHeader.querySelector('.collapse-chevron');
             var collapsed = slBody.classList.toggle('collapsed');
+            if (chevron) {
+                chevron.classList.toggle('open', !collapsed);
+                chevron.classList.toggle('closed', collapsed);
+            }
+        });
+    }
+
+    // ====== TODO COLLAPSE ======
+    var todoHeader = document.getElementById('todo-header');
+    var todoBody = document.getElementById('todo-body');
+    if (todoHeader && todoBody) {
+        todoHeader.addEventListener('click', function () {
+            var chevron = todoHeader.querySelector('.collapse-chevron');
+            var collapsed = todoBody.classList.toggle('collapsed');
             if (chevron) {
                 chevron.classList.toggle('open', !collapsed);
                 chevron.classList.toggle('closed', collapsed);

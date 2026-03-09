@@ -2,6 +2,7 @@ import {
     RadarData, RadarSwimlane, RadarSubGroup, RadarItem,
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
+    ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     ParseResult, ParseError, UnparsedLine,
     generateId, resetIdCounter,
 } from '../models/types';
@@ -21,6 +22,7 @@ export function parseIncoming(content: string): ParseResult {
         if (trimmed === '# Radar') { sectionStarts.push({ name: 'radar', start: i }); }
         else if (trimmed === '# TODO') { sectionStarts.push({ name: 'todo', start: i }); }
         else if (trimmed === '# Quotes') { sectionStarts.push({ name: 'quotes', start: i }); }
+        else if (trimmed === '# Reminders') { sectionStarts.push({ name: 'reminders', start: i }); }
     }
 
     // Determine section ranges: each section runs from heading+1 to next heading (or EOF)
@@ -36,12 +38,14 @@ export function parseIncoming(content: string): ParseResult {
     const radarSection = getSectionLines('radar');
     const todoSection = getSectionLines('todo');
     const quotesSection = getSectionLines('quotes');
+    const remindersSection = getSectionLines('reminders');
 
     const radar = parseRadarSection(radarSection.lines, radarSection.offset, errors, unparsedLines);
     const todo = parseTodoSection(todoSection.lines, todoSection.offset, errors);
     const quotes = parseQuotesSection(quotesSection.lines);
+    const reminders = parseRemindersSection(remindersSection.lines);
 
-    return { radar, todo, quotes, errors, unparsedLines };
+    return { radar, todo, quotes, reminders, errors, unparsedLines };
 }
 
 function parseRadarSection(
@@ -190,6 +194,14 @@ function parseTodoSection(
     sections.push(currentSection);
 
     let currentItem: TodoItem | null = null;
+    let notesLines: string[] = [];
+
+    function flushNotes() {
+        if (currentItem) {
+            currentItem.notes = notesLines.join('\n');
+        }
+        notesLines = [];
+    }
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -199,6 +211,7 @@ function parseTodoSection(
 
         // ## Section heading
         if (line.startsWith('## ')) {
+            flushNotes();
             currentItem = null;
             currentSection = {
                 kind: 'todoSection',
@@ -213,6 +226,7 @@ function parseTodoSection(
         // * [ ] or * [x] todo item
         const todoMatch = trimmed.match(/^\* \[([ x])\] (.+)$/);
         if (todoMatch) {
+            flushNotes();
             let text = todoMatch[2].trim();
             let radarLink: string | undefined;
 
@@ -228,22 +242,92 @@ function parseTodoSection(
                 id: generateId('td'),
                 text,
                 completed: todoMatch[1] === 'x',
-                details: [],
+                notes: '',
                 radarLink,
             };
             currentSection.items.push(currentItem);
             continue;
         }
 
-        // Indented detail sub-bullet
-        const detailMatch = line.match(/^    - (.+)$/);
-        if (detailMatch && currentItem) {
-            currentItem.details.push(detailMatch[1].trim());
+        // Indented note line: bullet (    - text) or paragraph (    text)
+        const bulletMatch = line.match(/^    - (.+)$/);
+        if (bulletMatch && currentItem) {
+            notesLines.push('- ' + bulletMatch[1].trim());
+            continue;
+        }
+
+        const paragraphMatch = line.match(/^    (.+)$/);
+        if (paragraphMatch && currentItem) {
+            notesLines.push(paragraphMatch[1].trimEnd());
             continue;
         }
     }
 
+    flushNotes();
+
     return { sections };
+}
+
+const VALID_DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export function parseDayTags(str: string): DayOfWeek[] {
+    const days: DayOfWeek[] = [];
+    const parts = str.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    for (const part of parts) {
+        const match = VALID_DAYS.find(d => d.toLowerCase() === part.toLowerCase());
+        if (match) { days.push(match); }
+    }
+    return days;
+}
+
+function parseRemindersSection(lines: string[]): ReminderData {
+    const meetings: ReminderMeeting[] = [];
+    let currentMeeting: ReminderMeeting | null = null;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed === '# Reminders') { continue; }
+
+        // ## Meeting Name (Day, Day)
+        if (line.startsWith('## ')) {
+            const heading = line.slice(3).trim();
+            const dayMatch = heading.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+            let name: string;
+            let days: DayOfWeek[] = [];
+
+            if (dayMatch) {
+                name = dayMatch[1].trim();
+                days = parseDayTags(dayMatch[2]);
+            } else {
+                name = heading;
+            }
+
+            currentMeeting = {
+                kind: 'reminderMeeting',
+                id: generateId('rm'),
+                name,
+                days,
+                points: [],
+            };
+            meetings.push(currentMeeting);
+            continue;
+        }
+
+        // - text (talking point)
+        if (trimmed.startsWith('- ') && currentMeeting) {
+            const text = trimmed.slice(2).trim();
+            if (text) {
+                currentMeeting.points.push({
+                    kind: 'reminderPoint',
+                    id: generateId('rp'),
+                    text,
+                });
+            }
+            continue;
+        }
+    }
+
+    return { meetings };
 }
 
 function parseQuotesSection(lines: string[]): QuoteData {

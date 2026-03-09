@@ -159,17 +159,26 @@ suite('Inc0ming Parser', () => {
         assert.strictEqual(result.todo.sections[2].items[1].completed, true);
     });
 
-    test('parses detail sub-bullets', () => {
+    test('parses detail sub-bullets as notes', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[1].items[0].details.length, 3);
-        assert.strictEqual(result.todo.sections[1].items[0].details[0], 'Title');
-        assert.strictEqual(result.todo.sections[1].items[0].details[1], 'Body');
-        assert.strictEqual(result.todo.sections[1].items[0].details[2], 'Closing');
+        assert.strictEqual(result.todo.sections[1].items[0].notes, '- Title\n- Body\n- Closing');
     });
 
-    test('items without details have empty array', () => {
+    test('items without notes have empty string', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[2].items[0].details.length, 0);
+        assert.strictEqual(result.todo.sections[2].items[0].notes, '');
+    });
+
+    test('parses paragraph notes (indented without dash)', () => {
+        const input = `# TODO\n* [ ] Policy Reading\n    We recognize accomplishments.\n    Things the org is doing.`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.todo.sections[0].items[0].notes, 'We recognize accomplishments.\nThings the org is doing.');
+    });
+
+    test('parses mixed paragraph and bullet notes', () => {
+        const input = `# TODO\n* [ ] Policy Reading\n    Paragraph text here.\n    - Bullet one\n    - Bullet two\n    More paragraph text.`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.todo.sections[0].items[0].notes, 'Paragraph text here.\n- Bullet one\n- Bullet two\nMore paragraph text.');
     });
 
     test('parses radar cross-reference', () => {
@@ -282,6 +291,69 @@ suite('Inc0ming Parser', () => {
         const result = parseIncoming(input);
         assert.strictEqual(result.quotes.items[0].kind, 'quote');
         assert.ok(result.quotes.items[0].id.startsWith('qt_'));
+    });
+
+    // ---- Reminders Section ----
+
+    test('parses reminders with day tags', () => {
+        const input = `# Reminders\n\n## Monday Standup (Mon)\n- Blocked on API migration\n- Need to discuss deploy timeline`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings.length, 1);
+        assert.strictEqual(result.reminders.meetings[0].name, 'Monday Standup');
+        assert.deepStrictEqual(result.reminders.meetings[0].days, ['Mon']);
+        assert.strictEqual(result.reminders.meetings[0].points.length, 2);
+        assert.strictEqual(result.reminders.meetings[0].points[0].text, 'Blocked on API migration');
+    });
+
+    test('parses reminders with multiple days', () => {
+        const input = `# Reminders\n\n## 1:1 with Sarah (Wed, Fri)\n- Ask about promotion timeline`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings[0].name, '1:1 with Sarah');
+        assert.deepStrictEqual(result.reminders.meetings[0].days, ['Wed', 'Fri']);
+        assert.strictEqual(result.reminders.meetings[0].points.length, 1);
+    });
+
+    test('parses reminders with no day tags', () => {
+        const input = `# Reminders\n\n## Ad Hoc Sync\n- Topic one`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings[0].name, 'Ad Hoc Sync');
+        assert.deepStrictEqual(result.reminders.meetings[0].days, []);
+        assert.strictEqual(result.reminders.meetings[0].points.length, 1);
+    });
+
+    test('parses empty meetings (no points)', () => {
+        const input = `# Reminders\n\n## Empty Meeting (Tue)`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings.length, 1);
+        assert.strictEqual(result.reminders.meetings[0].points.length, 0);
+    });
+
+    test('reminder meetings have kind and id', () => {
+        const input = `# Reminders\n\n## Standup (Mon)\n- Item`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings[0].kind, 'reminderMeeting');
+        assert.ok(result.reminders.meetings[0].id.startsWith('rm_'));
+    });
+
+    test('reminder points have kind and id', () => {
+        const input = `# Reminders\n\n## Standup (Mon)\n- Item`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings[0].points[0].kind, 'reminderPoint');
+        assert.ok(result.reminders.meetings[0].points[0].id.startsWith('rp_'));
+    });
+
+    test('reminders section is independent of section ordering', () => {
+        const input = `# TODO\n* [ ] Task\n\n# Reminders\n\n## Standup (Mon)\n- Item\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings.length, 1);
+        assert.strictEqual(result.radar.swimlanes.length, 1);
+        assert.strictEqual(result.todo.sections[0].items.length, 1);
+    });
+
+    test('empty reminders section returns empty meetings array', () => {
+        const input = `# Reminders\n\n# Radar\n\n# TODO`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.reminders.meetings.length, 0);
     });
 
     // ---- ID reset ----

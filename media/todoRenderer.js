@@ -226,16 +226,14 @@
                         textEl.className = 'todo-text';
                         textEl.textContent = item.text;
 
-                        // Click to expand/collapse inline details
+                        // Click to expand/collapse notes
                         textEl.addEventListener('click', function () {
-                            if (item.details && item.details.length > 0) {
-                                if (expandedItemId === item.id) {
-                                    expandedItemId = null;
-                                } else {
-                                    expandedItemId = item.id;
-                                }
-                                render();
+                            if (expandedItemId === item.id) {
+                                expandedItemId = null;
+                            } else {
+                                expandedItemId = item.id;
                             }
+                            render();
                         });
 
                         // Double-click to inline edit
@@ -270,6 +268,15 @@
                         });
                         row.appendChild(textEl);
 
+                        // Notes indicator
+                        if (item.notes && item.notes.trim()) {
+                            var indicator = document.createElement('span');
+                            indicator.className = 'notes-indicator';
+                            indicator.textContent = '\u2637';
+                            indicator.title = 'Has notes';
+                            row.appendChild(indicator);
+                        }
+
                         // Delete button
                         var itemDelBtn = document.createElement('button');
                         itemDelBtn.className = 'close-btn';
@@ -284,17 +291,79 @@
 
                         body.appendChild(row);
 
-                        // Inline detail expansion
-                        if (expandedItemId === item.id && item.details && item.details.length > 0) {
-                            var detailDiv = document.createElement('div');
-                            detailDiv.className = 'todo-item-details';
-                            for (var d = 0; d < item.details.length; d++) {
-                                var bullet = document.createElement('div');
-                                bullet.className = 'detail-bullet';
-                                bullet.textContent = item.details[d];
-                                detailDiv.appendChild(bullet);
+                        // Inline notes expansion
+                        if (expandedItemId === item.id) {
+                            var notesDiv = document.createElement('div');
+                            notesDiv.className = 'todo-item-details';
+
+                            if (item.notes && item.notes.trim()) {
+                                var noteLines = item.notes.split('\n');
+                                for (var d = 0; d < noteLines.length; d++) {
+                                    var noteLine = noteLines[d];
+                                    if (!noteLine.trim()) { continue; }
+                                    var lineEl = document.createElement('div');
+                                    if (noteLine.match(/^- /)) {
+                                        lineEl.className = 'note-bullet';
+                                        lineEl.textContent = noteLine.slice(2);
+                                    } else {
+                                        lineEl.className = 'note-paragraph';
+                                        lineEl.textContent = noteLine;
+                                    }
+                                    notesDiv.appendChild(lineEl);
+                                }
+                            } else {
+                                var emptyEl = document.createElement('div');
+                                emptyEl.className = 'notes-empty';
+                                emptyEl.textContent = 'Click to add notes...';
+                                notesDiv.appendChild(emptyEl);
                             }
-                            body.appendChild(detailDiv);
+
+                            // Double-click notes area to edit
+                            notesDiv.addEventListener('dblclick', function (e) {
+                                e.stopPropagation();
+                                var textarea = document.createElement('textarea');
+                                textarea.className = 'notes-textarea';
+                                textarea.value = item.notes || '';
+                                textarea.placeholder = 'Add notes...\nUse "- " prefix for bullet points';
+                                notesDiv.innerHTML = '';
+                                notesDiv.appendChild(textarea);
+                                textarea.focus();
+
+                                // Auto-resize
+                                function autoResize() {
+                                    textarea.style.height = 'auto';
+                                    textarea.style.height = Math.max(60, textarea.scrollHeight) + 'px';
+                                }
+                                autoResize();
+                                textarea.addEventListener('input', autoResize);
+
+                                function saveNotes() {
+                                    var newNotes = textarea.value;
+                                    if (newNotes !== item.notes) {
+                                        window.DashboardBridge.postMessage({
+                                            type: 'editTodoNotes',
+                                            id: item.id,
+                                            notes: newNotes,
+                                        });
+                                    } else {
+                                        render();
+                                    }
+                                }
+
+                                textarea.addEventListener('blur', saveNotes);
+                                textarea.addEventListener('keydown', function (ke) {
+                                    if (ke.key === 'Enter' && ke.ctrlKey) {
+                                        ke.preventDefault();
+                                        saveNotes();
+                                    }
+                                    if (ke.key === 'Escape') {
+                                        ke.preventDefault();
+                                        render();
+                                    }
+                                });
+                            });
+
+                            body.appendChild(notesDiv);
                         }
                     })(section.items[i]);
                 }

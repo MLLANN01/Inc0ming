@@ -2,7 +2,7 @@
   "name": "inc0ming",
   "displayName": "Inc0ming",
   "description": "Radar + Todo dashboard powered by markdown files",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "MLLANN01",
   "icon": "media/icon.png",
   "repository": {
@@ -108,6 +108,18 @@
         "command": "inc0ming.deleteQuote",
         "title": "Delete Quote",
         "icon": "$(trash)",
+        "category": "Inc0ming"
+      },
+      {
+        "command": "inc0ming.addMeeting",
+        "title": "Add Meeting",
+        "icon": "$(add)",
+        "category": "Inc0ming"
+      },
+      {
+        "command": "inc0ming.addPoint",
+        "title": "Add Talking Point",
+        "icon": "$(add)",
         "category": "Inc0ming"
       }
     ],

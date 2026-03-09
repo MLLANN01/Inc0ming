@@ -68,7 +68,7 @@ suite('Inc0ming Serializer', () => {
         assert.strictEqual(reparsed.radar.swimlanes[0].subGroups[1].name, 'Phase 2');
     });
 
-    test('preserves todo details', () => {
+    test('preserves todo notes (bullets)', () => {
         const input = `# Radar
 
 # TODO
@@ -82,8 +82,26 @@ suite('Inc0ming Serializer', () => {
         const output = serializeIncoming(result.radar, result.todo, result.unparsedLines);
         const reparsed = parseIncoming(output);
 
-        assert.strictEqual(reparsed.todo.sections[0].items[0].details.length, 3);
-        assert.strictEqual(reparsed.todo.sections[0].items[0].details[0], 'Step 1');
+        assert.strictEqual(reparsed.todo.sections[0].items[0].notes, '- Step 1\n- Step 2\n- Step 3');
+    });
+
+    test('round-trips mixed notes (paragraphs and bullets)', () => {
+        const input = `# Radar
+
+# TODO
+* [ ] Policy Reading
+    We recognize accomplishments.
+    - Small things for your people
+    - Recognizing teams
+    Things the org is doing.
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.todo.sections[0].items[0].notes,
+            'We recognize accomplishments.\n- Small things for your people\n- Recognizing teams\nThings the org is doing.');
     });
 
     test('preserves radar link cross-references', () => {
@@ -143,7 +161,7 @@ suite('Inc0ming Serializer', () => {
         assert.strictEqual(reparsed.todo.sections[0].items.length, 0);
         assert.strictEqual(reparsed.todo.sections[1].name, 'Work');
         assert.strictEqual(reparsed.todo.sections[1].items.length, 2);
-        assert.strictEqual(reparsed.todo.sections[1].items[0].details.length, 2);
+        assert.strictEqual(reparsed.todo.sections[1].items[0].notes, '- Title\n- Body');
         assert.strictEqual(reparsed.todo.sections[2].name, 'Personal');
         assert.strictEqual(reparsed.todo.sections[2].items.length, 2);
         assert.strictEqual(reparsed.todo.sections[2].items[1].completed, true);
@@ -177,6 +195,94 @@ suite('Inc0ming Serializer', () => {
         // Radar and todo still intact
         assert.strictEqual(reparsed.radar.swimlanes.length, 1);
         assert.strictEqual(reparsed.todo.sections[0].items.length, 1);
+    });
+
+    test('round-trips reminders section', () => {
+        const input = `# Radar
+
+## Lane
+- 1/1/26 - Item
+
+# Quotes
+> Stay hungry. — Jobs
+
+# Reminders
+
+## Monday Standup (Mon)
+- Blocked on API migration
+- Need to discuss deploy timeline
+
+## 1:1 with Sarah (Wed, Fri)
+- Ask about promotion timeline
+
+# TODO
+* [ ] Task
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.reminders.meetings.length, 2);
+        assert.strictEqual(reparsed.reminders.meetings[0].name, 'Monday Standup');
+        assert.deepStrictEqual(reparsed.reminders.meetings[0].days, ['Mon']);
+        assert.strictEqual(reparsed.reminders.meetings[0].points.length, 2);
+        assert.strictEqual(reparsed.reminders.meetings[0].points[0].text, 'Blocked on API migration');
+        assert.strictEqual(reparsed.reminders.meetings[1].name, '1:1 with Sarah');
+        assert.deepStrictEqual(reparsed.reminders.meetings[1].days, ['Wed', 'Fri']);
+        // Radar and todo still intact
+        assert.strictEqual(reparsed.radar.swimlanes.length, 1);
+        assert.strictEqual(reparsed.todo.sections[0].items.length, 1);
+        assert.strictEqual(reparsed.quotes.items.length, 1);
+    });
+
+    test('round-trips reminders with multiple days', () => {
+        const input = `# Radar
+
+# Reminders
+
+## Daily Sync (Mon, Tue, Wed, Thu, Fri)
+- Check blockers
+
+# TODO
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.reminders.meetings.length, 1);
+        assert.deepStrictEqual(reparsed.reminders.meetings[0].days, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+    });
+
+    test('round-trips empty meetings (no points)', () => {
+        const input = `# Radar
+
+# Reminders
+
+## Empty Meeting (Tue)
+
+# TODO
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.reminders.meetings.length, 1);
+        assert.strictEqual(reparsed.reminders.meetings[0].name, 'Empty Meeting');
+        assert.strictEqual(reparsed.reminders.meetings[0].points.length, 0);
+    });
+
+    test('omits reminders section when no meetings', () => {
+        const output = serializeIncoming(
+            { swimlanes: [] },
+            { sections: [] },
+            [],
+            { items: [] },
+            { meetings: [] }
+        );
+        assert.ok(!output.includes('# Reminders'));
     });
 
     test('default section omits ## heading', () => {

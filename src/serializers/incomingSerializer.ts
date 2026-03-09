@@ -1,4 +1,4 @@
-import { RadarData, TodoData, QuoteData, UnparsedLine } from '../models/types';
+import { RadarData, TodoData, QuoteData, ReminderData, UnparsedLine } from '../models/types';
 import { formatDateMDYY } from '../utils/dateUtils';
 
 export function serializeIncoming(
@@ -6,6 +6,7 @@ export function serializeIncoming(
     todo: TodoData,
     unparsedLines: UnparsedLine[] = [],
     quotes: QuoteData = { items: [] },
+    reminders: ReminderData = { meetings: [] },
 ): string {
     const parts: string[] = [];
 
@@ -62,6 +63,22 @@ export function serializeIncoming(
         parts.push('');
     }
 
+    // === Reminders Section ===
+    if (reminders.meetings.length > 0) {
+        parts.push('# Reminders');
+        for (const meeting of reminders.meetings) {
+            if (meeting.days.length > 0) {
+                parts.push(`## ${meeting.name} (${meeting.days.join(', ')})`);
+            } else {
+                parts.push(`## ${meeting.name}`);
+            }
+            for (const point of meeting.points) {
+                parts.push(`- ${point.text}`);
+            }
+        }
+        parts.push('');
+    }
+
     // === Todo Section ===
     parts.push('# TODO');
 
@@ -78,8 +95,12 @@ export function serializeIncoming(
             }
             parts.push(line);
 
-            for (const detail of item.details) {
-                parts.push(`    - ${detail}`);
+            if (item.notes) {
+                for (const line of item.notes.split('\n')) {
+                    if (line.trim()) {
+                        parts.push(`    ${line}`);
+                    }
+                }
             }
         }
     }

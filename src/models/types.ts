@@ -50,13 +50,34 @@ export interface QuoteData {
     items: QuoteItem[];
 }
 
+// ===== Reminder Models =====
+export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+
+export interface ReminderPoint {
+    kind: 'reminderPoint';
+    id: string;
+    text: string;
+}
+
+export interface ReminderMeeting {
+    kind: 'reminderMeeting';
+    id: string;
+    name: string;
+    days: DayOfWeek[];
+    points: ReminderPoint[];
+}
+
+export interface ReminderData {
+    meetings: ReminderMeeting[];
+}
+
 // ===== Todo Models =====
 export interface TodoItem {
     kind: 'todo';
     id: string;
     text: string;
     completed: boolean;
-    details: string[];
+    notes: string;
     radarLink?: string;
 }
 
@@ -87,6 +108,7 @@ export interface ParseResult {
     radar: RadarData;
     todo: TodoData;
     quotes: QuoteData;
+    reminders: ReminderData;
     errors: ParseError[];
     unparsedLines: UnparsedLine[];
 }
@@ -123,6 +145,7 @@ export type ExtensionMessage =
     | { type: 'radarUpdate'; data: SerializedRadarData }
     | { type: 'todoUpdate'; data: TodoData }
     | { type: 'quotesUpdate'; data: QuoteData }
+    | { type: 'remindersUpdate'; data: ReminderData }
     | { type: 'parseErrors'; errors: ParseError[] };
 
 // Webview → Extension
@@ -149,5 +172,13 @@ export type WebviewMessage =
     | { type: 'saveRadarVisible'; visible: boolean }
     | { type: 'addQuote'; text: string; attribution?: string }
     | { type: 'editQuote'; id: string; text: string; attribution?: string }
-    | { type: 'deleteQuote'; id: string };
+    | { type: 'deleteQuote'; id: string }
+    | { type: 'addMeeting'; name: string; days: string }
+    | { type: 'renameMeeting'; id: string; name: string; days: string }
+    | { type: 'deleteMeeting'; id: string }
+    | { type: 'addPoint'; meetingId: string; text: string }
+    | { type: 'editPoint'; id: string; text: string }
+    | { type: 'deletePoint'; id: string }
+    | { type: 'clearMeeting'; id: string }
+    | { type: 'editTodoNotes'; id: string; notes: string };
 

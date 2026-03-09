@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
 import {
-    RadarData, TodoData,
+    RadarData, TodoData, DayOfWeek,
     SerializedRadarData, WebviewMessage,
 } from '../models/types';
+import { parseDayTags } from '../parsers/incomingParser';
 
 export class DashboardPanel {
     public static currentPanel: DashboardPanel | undefined;
@@ -63,6 +64,7 @@ export class DashboardPanel {
         const radarData = this._serializeRadar(this._store.radar);
         this._panel.webview.postMessage({ type: 'radarUpdate', data: radarData });
         this._panel.webview.postMessage({ type: 'quotesUpdate', data: this._store.quotes });
+        this._panel.webview.postMessage({ type: 'remindersUpdate', data: this._store.reminders });
 
         // Send layout BEFORE todo data so GridManager has correct state when render() calls applyLayout()
         const layout = this._context.workspaceState.get('inc0ming.gridLayout');
@@ -165,6 +167,32 @@ export class DashboardPanel {
             case 'deleteQuote':
                 this._store.deleteQuote(msg.id);
                 break;
+            case 'addMeeting':
+                this._store.addMeeting(msg.name, parseDayTags(msg.days));
+                break;
+            case 'renameMeeting': {
+                const days = parseDayTags(msg.days);
+                this._store.renameMeeting(msg.id, msg.name, days);
+                break;
+            }
+            case 'deleteMeeting':
+                this._store.deleteMeeting(msg.id);
+                break;
+            case 'addPoint':
+                this._store.addPoint(msg.meetingId, msg.text);
+                break;
+            case 'editPoint':
+                this._store.editPoint(msg.id, msg.text);
+                break;
+            case 'deletePoint':
+                this._store.deletePoint(msg.id);
+                break;
+            case 'clearMeeting':
+                this._store.clearMeeting(msg.id);
+                break;
+            case 'editTodoNotes':
+                this._store.editTodoNotes(msg.id, msg.notes);
+                break;
             default:
                 return; // Unknown message, don't save
         }
@@ -182,6 +210,7 @@ export class DashboardPanel {
         const todoJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'todoRenderer.js'));
         const quoteJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'quoteRenderer.js'));
         const gridJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'gridManager.js'));
+        const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
 
         const nonce = getNonce();
 
@@ -234,14 +263,32 @@ export class DashboardPanel {
         </div>
     </div>
 
-    <div id="todo-grid-header">
-        <div class="section-header">TODO</div>
+    <div id="todo-container">
+        <div class="section-header collapsible" id="todo-header">
+            <span class="collapse-chevron open">\u25bc</span> TODO
+        </div>
+        <div id="todo-body">
+            <div id="new-section-row">
+                <input type="text" id="new-section-input" placeholder="New section name...">
+                <button id="add-section-btn">+ Add Section</button>
+            </div>
+            <div id="todo-grid"></div>
+        </div>
     </div>
-    <div id="new-section-row">
-        <input type="text" id="new-section-input" placeholder="New section name...">
-        <button id="add-section-btn">+ Add Section</button>
+
+    <div id="reminders-container">
+        <div class="section-header collapsible" id="reminders-header">
+            <span class="collapse-chevron open">\u25bc</span> Reminders
+        </div>
+        <div id="reminders-body">
+            <div id="new-meeting-row">
+                <input type="text" id="new-meeting-name" placeholder="Meeting name...">
+                <input type="text" id="new-meeting-days" placeholder="Days (e.g. Mon, Wed, Fri)">
+                <button id="add-meeting-btn">+ Add Meeting</button>
+            </div>
+            <div id="reminders-grid"></div>
+        </div>
     </div>
-    <div id="todo-grid"></div>
 
     <div id="quotes-manage-container">
         <div class="section-header collapsible" id="quotes-header">
@@ -260,6 +307,7 @@ export class DashboardPanel {
     <script nonce="${nonce}" src="${radarJsUri}"></script>
     <script nonce="${nonce}" src="${todoJsUri}"></script>
     <script nonce="${nonce}" src="${quoteJsUri}"></script>
+    <script nonce="${nonce}" src="${reminderJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>
