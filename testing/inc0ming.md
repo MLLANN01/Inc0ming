@@ -1,7 +1,7 @@
 # Radar
 
 ## Reminders
-- 3/10/26 - follow up on budget variances
+- 3/13/26 - follow up on budget variances
 
 ## EOSL
 - 4/30/26 - Windows
@@ -30,7 +30,7 @@
 ## Certifications
 <!-- color: #4488ff -->
 - 5/15/26 - AWS Solutions Architect renewal
-- 8/20/26 - Azure Fundamentals exam
+- 7/30/26 - Azure Fundamentals exam
 - 10/1/26 - CKA Kubernetes cert
 
 ## Infrastructure
@@ -84,14 +84,81 @@
 - Incident runbook ownership handoff
 ## Monthly All-Hands (Fri)
 
+# Goals
+
+## Q2 2026
+- [x] Complete AWS SA Certification {radar:Certifications}
+    Due: 5/15/26
+    - [x] Module 5: Networking (15%)
+        Completed 3/1 — passed practice exam
+    - [x] Module 6: Databases (15%)
+    - [x] Module 7: Architecture patterns (70%)
+        Due: 5/1/26
+    - [x] hjkl; (30%)
+        Due: 3/31/26
+- [ ] Ship cloud migration Phase 1 {radar:Infrastructure}
+    Due: 4/10/26
+    - [x] Runbook documented (30%)
+        Completed hejfhjsrfhrf
+    - [x] Failover tested (30%)
+        Due: 3/25/26
+    - [x] Cutover complete (40%)
+- [x] SOC 2 Audit Prep {radar:Compliance}
+    Due: 3/22/26
+    - [x] Control inventory (25%)
+    - [x] Evidence collection (25%)
+    - [x] Gap remediation (25%)
+    - [x] Final review package (25%)
+        Completed 3/18 — submitted to auditor
+- [ ] Build 2 SaaS solutions {radar:SaaS}
+    Due: 4/29/26
+    - [x] Build 1 SaaS solution (34%)
+        Due: 3/23/26
+    - [ ] Build second Saas solution (33%)
+        Due: 4/17/26
+    - [ ] fghjkl (33%)
+
+## Personal
+- [ ] Read 6 books this year
+    Due: 12/31/26
+    - [x] Designing Data-Intensive Applications (17%)
+        Completed 2/20 — excellent reference
+    - [ ] Atomic Habits (17%)
+    - [ ] Clean Architecture (17%)
+    - [ ] Staff Engineer (17%)
+    - [ ] Building Microservices (16%)
+    - [ ] Observability Engineering (16%)
+- [ ] Run a half marathon
+    Due: 10/11/26
+    - [x] Base building — 20 mi/week (20%)
+        Completed 2/15 — consistent for 6 weeks
+    - [ ] Speed work phase (20%)
+    - [ ] Long run 10+ miles (20%)
+    - [ ] Peak week 30 mi (20%)
+    - [ ] Taper and race (20%)
+
+## Simple Goals
+- [ ] Business {radar:Business}
+    Due: 5/1/26
+    - [ ] New Business (50%)
+        Due: 3/12/26
+    - [ ] Profit (50%)
+
 # TODO
+## Inc0ming
 * [ ] Pro Site Update
+    Due: 3/10/26
 * [x] Edit TODO and Radar Items and SubSections
 * [x] Order by Date Radar Items
 * [x] Create a reminders section
-* [ ] Goal Tracking?
+* [x] Goal Tracking?
 * [x] Collapsible Todo
 * [x] Notes for TODO item
+* [x] Remove Default Bucket for TODOs
+* [x] remove swim lane details
+    add swim lane details to side explorer
+    keep add swim lane text entry in dashboard
+    allow swim lane radar item to be added in scanner
 ## Work
 * [ ] Quarterly OKR draft
     - Identify key results
@@ -109,12 +176,14 @@
 * [x] Reviews
 * [ ] Schedule annual physical
 ## Follow up
-* [ ] POC for new app
+* [x] POC for new app {radar:hrijfskedl}
+    Due: 3/30/26
 * [ ] Vendor evaluation for monitoring tool
     - Compare Datadog vs Grafana Cloud
     - Get pricing quotes
     - Schedule demos
-* [ ] Follow up with security team on pen test results
+* [ ] Follow up with security team on pen test results {radar:Security Blocks}
+    Due: 3/17/26
 ## Learning
 * [ ] Read "Designing Data-Intensive Applications"
     - Part 1: Foundations

@@ -5,6 +5,21 @@
     var currentLayout = {};
     var draggedItemId = null;
     var expandedItemId = null;
+    var swimlaneNames = [];
+
+    function setSwimlanes(names) {
+        swimlaneNames = names || [];
+    }
+
+    // Shared utility aliases
+    var parseMDYY = window.DateUtils.parseMDYY;
+    var daysUntil = window.DateUtils.daysUntil;
+    var getDaysClass = window.DateUtils.getDaysClass;
+    var formatDaysBadge = window.DateUtils.formatDaysBadge;
+    var toISODate = window.DateUtils.toISODate;
+    var fromISODate = window.DateUtils.fromISODate;
+    var createInlineEdit = window.EditUtils.createInlineEdit;
+    var createAutocompleteEdit = window.EditUtils.createAutocompleteEdit;
 
     function setData(data, layout) {
         todoData = data;
@@ -54,7 +69,7 @@
 
                 var titleEl = document.createElement('span');
                 titleEl.className = 'widget-title';
-                titleEl.textContent = section.name || '(Default)';
+                titleEl.textContent = section.name;
 
                 // Double-click to rename section
                 titleEl.addEventListener('dblclick', function (e) {
@@ -66,8 +81,16 @@
                     titleEl.replaceWith(input);
                     input.focus();
                     input.select();
+                    var renameDone = false;
+
+                    function renameCleanup() {
+                        document.removeEventListener('mousedown', onRenameDocClick, true);
+                    }
 
                     function save() {
+                        if (renameDone) { return; }
+                        renameDone = true;
+                        renameCleanup();
                         var newName = input.value.trim();
                         if (newName && newName !== section.name) {
                             window.DashboardBridge.postMessage({
@@ -77,14 +100,25 @@
                             });
                         }
                         input.replaceWith(titleEl);
-                        titleEl.textContent = newName || section.name || '(Default)';
+                        titleEl.textContent = newName || section.name;
+                    }
+
+                    function onRenameDocClick(e2) {
+                        if (e2.target !== input) { save(); }
                     }
 
                     input.addEventListener('blur', save);
                     input.addEventListener('keydown', function (e) {
                         if (e.key === 'Enter') { save(); }
-                        if (e.key === 'Escape') { input.replaceWith(titleEl); }
+                        if (e.key === 'Escape') {
+                            if (renameDone) { return; }
+                            renameDone = true;
+                            renameCleanup();
+                            input.replaceWith(titleEl);
+                        }
                     });
+
+                    document.addEventListener('mousedown', onRenameDocClick, true);
                 });
                 header.appendChild(titleEl);
 
@@ -246,8 +280,16 @@
                             textEl.replaceWith(input);
                             input.focus();
                             input.select();
+                            var textDone = false;
+
+                            function textCleanup() {
+                                document.removeEventListener('mousedown', onTextDocClick, true);
+                            }
 
                             function save() {
+                                if (textDone) { return; }
+                                textDone = true;
+                                textCleanup();
                                 var newText = input.value.trim();
                                 if (newText && newText !== item.text) {
                                     window.DashboardBridge.postMessage({
@@ -260,13 +302,103 @@
                                 textEl.textContent = newText || item.text;
                             }
 
+                            function onTextDocClick(e2) {
+                                if (e2.target !== input) { save(); }
+                            }
+
                             input.addEventListener('blur', save);
                             input.addEventListener('keydown', function (e) {
                                 if (e.key === 'Enter') { save(); }
-                                if (e.key === 'Escape') { input.replaceWith(textEl); }
+                                if (e.key === 'Escape') {
+                                    if (textDone) { return; }
+                                    textDone = true;
+                                    textCleanup();
+                                    input.replaceWith(textEl);
+                                }
                             });
+
+                            document.addEventListener('mousedown', onTextDocClick, true);
                         });
                         row.appendChild(textEl);
+
+                        // Due date badge
+                        if (item.dueDate) {
+                            var dueD = parseMDYY(item.dueDate);
+                            if (dueD) {
+                                var days = daysUntil(dueD);
+                                var dueBadge = document.createElement('span');
+                                dueBadge.className = 'due-badge ' + getDaysClass(days);
+                                dueBadge.textContent = formatDaysBadge(days);
+                                dueBadge.title = 'Due: ' + item.dueDate;
+                                dueBadge.addEventListener('dblclick', function (e) {
+                                    e.stopPropagation();
+                                    var dateInput = document.createElement('input');
+                                    dateInput.type = 'date';
+                                    dateInput.className = 'todo-due-input';
+                                    dateInput.value = toISODate(item.dueDate);
+                                    var badgeDueDone = false;
+
+                                    function badgeDueCleanup() {
+                                        document.removeEventListener('mousedown', onBadgeDueDocClick, true);
+                                    }
+
+                                    function saveDue() {
+                                        if (badgeDueDone) { return; }
+                                        badgeDueDone = true;
+                                        badgeDueCleanup();
+                                        var newDate = fromISODate(dateInput.value);
+                                        window.DashboardBridge.postMessage({ type: 'editTodoDueDate', id: item.id, dueDate: newDate });
+                                        dateInput.replaceWith(dueBadge);
+                                    }
+
+                                    function onBadgeDueDocClick(e2) {
+                                        if (e2.target !== dateInput) { saveDue(); }
+                                    }
+
+                                    dateInput.addEventListener('change', saveDue);
+                                    dateInput.addEventListener('blur', function () {
+                                        setTimeout(function () {
+                                            if (!badgeDueDone) { saveDue(); }
+                                        }, 100);
+                                    });
+                                    dateInput.addEventListener('keydown', function (e2) {
+                                        if (e2.key === 'Escape') {
+                                            if (badgeDueDone) { return; }
+                                            badgeDueDone = true;
+                                            badgeDueCleanup();
+                                            dateInput.replaceWith(dueBadge);
+                                        }
+                                    });
+
+                                    document.addEventListener('mousedown', onBadgeDueDocClick, true);
+                                    dueBadge.replaceWith(dateInput);
+                                    dateInput.focus();
+                                });
+                                row.appendChild(dueBadge);
+                            }
+                        }
+
+                        // Radar link badge
+                        var radarBadge = null;
+                        if (item.radarLink) {
+                            radarBadge = document.createElement('span');
+                            radarBadge.className = 'todo-radar-badge';
+                            radarBadge.textContent = item.radarLink;
+                            radarBadge.addEventListener('dblclick', function (e) {
+                                e.stopPropagation();
+                                var acWrapper = createAutocompleteEdit(item.radarLink || '', swimlaneNames, function (val) {
+                                    window.DashboardBridge.postMessage({ type: 'editTodoRadarLink', id: item.id, radarLink: val });
+                                    acWrapper.replaceWith(radarBadge);
+                                    radarBadge.textContent = val || '';
+                                }, function () {
+                                    acWrapper.replaceWith(radarBadge);
+                                });
+                                radarBadge.replaceWith(acWrapper);
+                                acWrapper._input.focus();
+                                acWrapper._input.select();
+                            });
+                            row.appendChild(radarBadge);
+                        }
 
                         // Notes indicator
                         if (item.notes && item.notes.trim()) {
@@ -295,6 +427,99 @@
                         if (expandedItemId === item.id) {
                             var notesDiv = document.createElement('div');
                             notesDiv.className = 'todo-item-details';
+
+                            // Due date row (double-click to edit with date picker)
+                            var dueRow = document.createElement('div');
+                            dueRow.className = 'todo-detail-row';
+                            if (item.dueDate) {
+                                var dueParsed = parseMDYY(item.dueDate);
+                                var dueDays = dueParsed ? daysUntil(dueParsed) : null;
+                                dueRow.textContent = 'Due: ' + item.dueDate;
+                                if (dueDays !== null) {
+                                    dueRow.textContent += ' (' + formatDaysBadge(dueDays) + ')';
+                                    var cls = getDaysClass(dueDays);
+                                    if (cls === 'urgent' || cls === 'past') { dueRow.style.color = 'var(--urgent)'; }
+                                    else if (cls === 'warning') { dueRow.style.color = 'var(--warning)'; }
+                                }
+                            } else {
+                                dueRow.textContent = 'No due date';
+                                dueRow.classList.add('empty');
+                            }
+                            dueRow.addEventListener('dblclick', function (e) {
+                                e.stopPropagation();
+                                var dateInput = document.createElement('input');
+                                dateInput.type = 'date';
+                                dateInput.className = 'todo-due-input';
+                                dateInput.value = toISODate(item.dueDate);
+                                var rowDueDone = false;
+
+                                function rowDueCleanup() {
+                                    document.removeEventListener('mousedown', onRowDueDocClick, true);
+                                }
+
+                                function saveDue() {
+                                    if (rowDueDone) { return; }
+                                    rowDueDone = true;
+                                    rowDueCleanup();
+                                    var newDate = fromISODate(dateInput.value);
+                                    window.DashboardBridge.postMessage({ type: 'editTodoDueDate', id: item.id, dueDate: newDate });
+                                    dateInput.replaceWith(dueRow);
+                                }
+
+                                function onRowDueDocClick(e2) {
+                                    if (e2.target !== dateInput) { saveDue(); }
+                                }
+
+                                dateInput.addEventListener('change', saveDue);
+                                dateInput.addEventListener('blur', function () {
+                                    setTimeout(function () {
+                                        if (!rowDueDone) { saveDue(); }
+                                    }, 100);
+                                });
+                                dateInput.addEventListener('keydown', function (e2) {
+                                    if (e2.key === 'Escape') {
+                                        if (rowDueDone) { return; }
+                                        rowDueDone = true;
+                                        rowDueCleanup();
+                                        dateInput.replaceWith(dueRow);
+                                    }
+                                });
+
+                                document.addEventListener('mousedown', onRowDueDocClick, true);
+                                dueRow.replaceWith(dateInput);
+                                dateInput.focus();
+                            });
+                            notesDiv.appendChild(dueRow);
+
+                            // Radar link row (double-click to edit)
+                            var linkRow = document.createElement('div');
+                            linkRow.className = 'todo-detail-row';
+                            if (item.radarLink) {
+                                linkRow.textContent = 'Lane: ' + item.radarLink;
+                            } else {
+                                linkRow.textContent = 'No swim lane';
+                                linkRow.classList.add('empty');
+                            }
+                            linkRow.addEventListener('dblclick', function (e) {
+                                e.stopPropagation();
+                                var acWrapper = createAutocompleteEdit(item.radarLink || '', swimlaneNames, function (val) {
+                                    window.DashboardBridge.postMessage({ type: 'editTodoRadarLink', id: item.id, radarLink: val });
+                                    acWrapper.replaceWith(linkRow);
+                                    if (val) {
+                                        linkRow.textContent = 'Lane: ' + val;
+                                        linkRow.classList.remove('empty');
+                                    } else {
+                                        linkRow.textContent = 'No swim lane';
+                                        linkRow.classList.add('empty');
+                                    }
+                                }, function () {
+                                    acWrapper.replaceWith(linkRow);
+                                });
+                                linkRow.replaceWith(acWrapper);
+                                acWrapper._input.focus();
+                                acWrapper._input.select();
+                            });
+                            notesDiv.appendChild(linkRow);
 
                             if (item.notes && item.notes.trim()) {
                                 var noteLines = item.notes.split('\n');
@@ -328,6 +553,7 @@
                                 notesDiv.innerHTML = '';
                                 notesDiv.appendChild(textarea);
                                 textarea.focus();
+                                var notesDone = false;
 
                                 // Auto-resize
                                 function autoResize() {
@@ -337,7 +563,14 @@
                                 autoResize();
                                 textarea.addEventListener('input', autoResize);
 
+                                function notesCleanup() {
+                                    document.removeEventListener('mousedown', onNotesDocClick, true);
+                                }
+
                                 function saveNotes() {
+                                    if (notesDone) { return; }
+                                    notesDone = true;
+                                    notesCleanup();
                                     var newNotes = textarea.value;
                                     if (newNotes !== item.notes) {
                                         window.DashboardBridge.postMessage({
@@ -350,6 +583,10 @@
                                     }
                                 }
 
+                                function onNotesDocClick(e2) {
+                                    if (e2.target !== textarea) { saveNotes(); }
+                                }
+
                                 textarea.addEventListener('blur', saveNotes);
                                 textarea.addEventListener('keydown', function (ke) {
                                     if (ke.key === 'Enter' && ke.ctrlKey) {
@@ -358,9 +595,14 @@
                                     }
                                     if (ke.key === 'Escape') {
                                         ke.preventDefault();
+                                        if (notesDone) { return; }
+                                        notesDone = true;
+                                        notesCleanup();
                                         render();
                                     }
                                 });
+
+                                document.addEventListener('mousedown', onNotesDocClick, true);
                             });
 
                             body.appendChild(notesDiv);
@@ -451,5 +693,5 @@
         return closest;
     }
 
-    window.TodoRenderer = { setData: setData };
+    window.TodoRenderer = { setData: setData, setSwimlanes: setSwimlanes };
 })();

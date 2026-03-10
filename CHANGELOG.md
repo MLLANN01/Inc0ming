@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0] - 2026-03-09
+
+### Added
+- **Goals section** — longer-term aspirations with weighted milestones, progress tracking, due dates, completion notes, and radar cross-references (`# Goals`)
+- Goal sections, goal items (`- [ ]`/`- [x]`), milestones with optional `(N%)` weights, target notes, due dates, and completion notes
+- Goals progress bar calculated from completed milestone weights
+- **Todo due dates** — `Due: M/D/YY` line under todo items, with color-coded urgency badges on the dashboard
+- **Radar tree view** — hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons
+- Virtual radar blips for goals, milestones, and todos that have due dates or radar links — appear on the radar canvas as diamonds (goals), flags (milestones), and stars (todos)
+- Shared date and inline-edit utilities for webview renderers (`dateUtils.js`, `editUtils.js`)
+- Shared `getNonce()` utility (`src/utils/nonce.ts`)
+- Centralized virtual item type detection (`src/utils/virtualItems.ts`)
+
+### Improved
+- `computeAugmentedRadar()` result is now cached and invalidated on data changes, reducing redundant computation
+- Radar animation loop pauses when the tab is hidden or sweep is disabled, reducing CPU usage
+- Dashboard initialization batched into a single `allData` message instead of 8+ separate `postMessage` calls
+- Unified `.due-badge` CSS class replaces three separate badge rule sets
+- Extracted reusable `setupCollapsible()` and `setupSubmitInput()` helpers in dashboard.js
+- ~300 lines of duplicated date/edit JS removed from renderers
+
+### Removed
+- Dead CSS selectors (`#ai-assist-container`, `.ai-idea-item`, `#add-todo-top-btn`)
+- Unused `setSwimlaneColor()` method from DataStore
+- Unused `getUpcomingCount()` method from notifications
+
 ## [0.2.0] - 2026-03-08
 
 ### Added

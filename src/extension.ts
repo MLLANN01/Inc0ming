@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { DataStore } from './services/dataStore';
 import { DashboardPanel } from './panels/dashboardPanel';
 import { SidebarViewProvider } from './panels/sidebarViewProvider';
+import { RadarTreeProvider } from './panels/radarTreeProvider';
 import { NotificationManager } from './utils/notifications';
 import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem, ReminderMeeting } from './models/types';
 import { parseDayTags } from './parsers/incomingParser';
@@ -19,6 +20,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider),
     );
+
+    // Swim lane tree view in explorer (with collapse all button)
+    const radarTreeProvider = new RadarTreeProvider(store);
+    const radarTreeView = vscode.window.createTreeView('inc0ming.radarTree', {
+        treeDataProvider: radarTreeProvider,
+        showCollapseAll: true,
+    });
+    context.subscriptions.push(radarTreeView);
 
     store.onDidChange(() => {
         notifications.checkItems(store);
@@ -38,6 +47,36 @@ export function activate(context: vscode.ExtensionContext) {
             const name = await vscode.window.showInputBox({ prompt: 'Swim lane name' });
             if (!name) { return; }
             store.addSwimlane(name);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.addSubGroup', async (element?: any) => {
+            let swimlaneId: string | undefined;
+
+            if (element) {
+                const resolved = resolveTreeElement(store, element);
+                if (resolved && resolved.kind === 'swimlane') {
+                    swimlaneId = resolved.id;
+                }
+            }
+
+            if (!swimlaneId) {
+                const swimlanes = store.radar.swimlanes;
+                if (swimlanes.length === 0) {
+                    vscode.window.showWarningMessage('Add a swim lane first.');
+                    return;
+                }
+                const pick = await vscode.window.showQuickPick(
+                    swimlanes.map(s => ({ label: s.name, id: s.id })),
+                    { placeHolder: 'Select swimlane' }
+                );
+                if (!pick) { return; }
+                swimlaneId = pick.id;
+            }
+
+            const name = await vscode.window.showInputBox({ prompt: 'Sub-group name' });
+            if (!name) { return; }
+            store.addSubGroup(swimlaneId, name);
             await store.save();
         }),
 
@@ -217,6 +256,13 @@ export function activate(context: vscode.ExtensionContext) {
             const id = treeItem.id;
             if (id && store.toggleTodo(id)) {
                 await store.save();
+            }
+        }),
+
+        vscode.commands.registerCommand('inc0ming.expandRadarTree', async () => {
+            const roots = radarTreeProvider.getRootElements();
+            for (const root of roots) {
+                await radarTreeView.reveal(root, { expand: 2, select: false, focus: false });
             }
         }),
 

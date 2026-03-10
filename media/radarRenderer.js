@@ -36,6 +36,7 @@
     let sweepX = -999;
     let sweepStartTime = 0;
     let sweepEnabled = true;
+    let rAFId = null;
     let hoveredBlip = null;
     let draggedBlip = null;
     let isDragging = false;
@@ -44,6 +45,7 @@
     let draggedLaneIndex = null;
     let laneDropIndex = null;
     let hoveredLaneIndex = -1;
+    var activeShapeFilters = { circle: true, diamond: true, flag: true, star: true };
 
     const LEFT_MARGIN = 110;
     const RIGHT_MARGIN = 60;
@@ -65,7 +67,21 @@
         canvas.addEventListener('click', onClick);
         canvas.addEventListener('mouseleave', onMouseLeave);
         sweepStartTime = performance.now();
-        animate();
+        rAFId = requestAnimationFrame(animate);
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                if (rAFId !== null) {
+                    cancelAnimationFrame(rAFId);
+                    rAFId = null;
+                }
+            } else {
+                if (rAFId === null) {
+                    sweepStartTime = performance.now();
+                    rAFId = requestAnimationFrame(animate);
+                }
+            }
+        });
     }
 
     function computeCanvasHeight() {
@@ -113,6 +129,8 @@
             // Direct items
             for (var ii = 0; ii < swimlane.items.length; ii++) {
                 var item = swimlane.items[ii];
+                var itemShape = item.shape || 'circle';
+                if (!activeShapeFilters[itemShape]) { continue; }
                 var days = daysBetween(new Date(), new Date(item.date));
                 if (days < 0 || days > MAX_DAYS) { continue; }
                 var x = LEFT_MARGIN + (days / MAX_DAYS) * drawWidth;
@@ -129,6 +147,8 @@
                 var sg = swimlane.subGroups[sgi];
                 for (var sii = 0; sii < sg.items.length; sii++) {
                     var sgItem = sg.items[sii];
+                    var sgItemShape = sgItem.shape || 'circle';
+                    if (!activeShapeFilters[sgItemShape]) { continue; }
                     var sgDays = daysBetween(new Date(), new Date(sgItem.date));
                     if (sgDays < 0 || sgDays > MAX_DAYS) { continue; }
                     var sgX = LEFT_MARGIN + (sgDays / MAX_DAYS) * drawWidth;
@@ -153,23 +173,39 @@
     }
 
     function animate(timestamp) {
-        if (!ctx || !canvas) { return; }
+        if (!ctx || !canvas) { rAFId = null; return; }
         if (sweepEnabled) {
             var elapsed = (timestamp || 0) - sweepStartTime;
             var progress = (elapsed % SWEEP_DURATION) / SWEEP_DURATION;
             sweepX = LEFT_MARGIN + progress * (canvas.clientWidth - LEFT_MARGIN - RIGHT_MARGIN);
+            draw();
+            rAFId = requestAnimationFrame(animate);
         } else {
             sweepX = -999;
+            draw();
+            rAFId = null;
         }
-        draw();
-        requestAnimationFrame(animate);
     }
 
     function setSweepEnabled(enabled) {
         sweepEnabled = enabled;
         if (enabled) {
             sweepStartTime = performance.now();
+            if (rAFId === null) {
+                rAFId = requestAnimationFrame(animate);
+            }
+        } else {
+            if (rAFId !== null) {
+                cancelAnimationFrame(rAFId);
+                rAFId = null;
+            }
+            sweepX = -999;
+            draw();
         }
+    }
+
+    function setFilters(filters) {
+        activeShapeFilters = filters;
     }
 
     function truncateLabel(text, maxWidth) {
@@ -255,14 +291,12 @@
             ctx.fillText(dayVal + 'd', dx, bottomY);
         }
 
-        // Blips (dots only, hover for details)
+        // Blips — shape varies by item type
         for (var bi = 0; bi < blips.length; bi++) {
             var blip = blips[bi];
             var distToSweep = Math.abs(blip.x - sweepX);
             var glowing = distToSweep < 25;
-
-            ctx.beginPath();
-            ctx.arc(blip.x, blip.y, BLIP_RADIUS, 0, Math.PI * 2);
+            var shape = blip.item.shape || 'circle';
 
             if (glowing) {
                 ctx.shadowColor = blip.color;
@@ -271,6 +305,48 @@
             } else {
                 ctx.shadowBlur = 0;
                 ctx.fillStyle = blip.color + 'bb';
+            }
+
+            ctx.beginPath();
+            if (shape === 'diamond') {
+                // Diamond (rotated square) for goals
+                var dr = BLIP_RADIUS + 1;
+                ctx.moveTo(blip.x, blip.y - dr);
+                ctx.lineTo(blip.x + dr, blip.y);
+                ctx.lineTo(blip.x, blip.y + dr);
+                ctx.lineTo(blip.x - dr, blip.y);
+                ctx.closePath();
+            } else if (shape === 'flag') {
+                // Flag for milestones — pole + pennant, scaled up
+                var fr = BLIP_RADIUS + 3;
+                var poleX = blip.x - fr * 0.4;
+                // Pole (stroked line)
+                ctx.moveTo(poleX, blip.y + fr);
+                ctx.lineTo(poleX, blip.y - fr);
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = ctx.fillStyle;
+                ctx.stroke();
+                // Pennant (filled triangle)
+                ctx.beginPath();
+                ctx.moveTo(poleX, blip.y - fr);
+                ctx.lineTo(blip.x + fr * 0.8, blip.y - fr * 0.35);
+                ctx.lineTo(poleX, blip.y + fr * 0.1);
+                ctx.closePath();
+            } else if (shape === 'star') {
+                // 5-pointed star for TODOs
+                var outerR = BLIP_RADIUS + 2;
+                var innerR = outerR * 0.4;
+                ctx.moveTo(blip.x, blip.y - outerR);
+                for (var si = 0; si < 5; si++) {
+                    var outerAngle = -Math.PI / 2 + si * (2 * Math.PI / 5);
+                    var innerAngle = outerAngle + Math.PI / 5;
+                    ctx.lineTo(blip.x + Math.cos(outerAngle) * outerR, blip.y + Math.sin(outerAngle) * outerR);
+                    ctx.lineTo(blip.x + Math.cos(innerAngle) * innerR, blip.y + Math.sin(innerAngle) * innerR);
+                }
+                ctx.closePath();
+            } else {
+                // Circle (default) for regular items
+                ctx.arc(blip.x, blip.y, BLIP_RADIUS, 0, Math.PI * 2);
             }
             ctx.fill();
             ctx.shadowBlur = 0;
@@ -466,13 +542,34 @@
             newDate.setDate(newDate.getDate() + days);
             var dateStr = (newDate.getMonth() + 1) + '/' + newDate.getDate() + '/' + String(newDate.getFullYear() % 100).padStart(2, '0');
 
-            // Post editRadarItem message with updated date
-            window.DashboardBridge.postMessage({
-                type: 'editRadarItem',
-                id: draggedBlip.item.id,
-                label: draggedBlip.item.label,
-                dateStr: dateStr,
-            });
+            // Post appropriate message based on item type
+            var itemId = draggedBlip.item.id;
+            if (itemId.startsWith('virt_gl_')) {
+                window.DashboardBridge.postMessage({
+                    type: 'editGoalDueDate',
+                    id: itemId.slice(8),
+                    dueDate: dateStr,
+                });
+            } else if (itemId.startsWith('virt_td_')) {
+                window.DashboardBridge.postMessage({
+                    type: 'editTodoDueDate',
+                    id: itemId.slice(8),
+                    dueDate: dateStr,
+                });
+            } else if (itemId.startsWith('virt_ms_')) {
+                window.DashboardBridge.postMessage({
+                    type: 'editMilestoneDueDate',
+                    id: itemId.slice(8),
+                    dueDate: dateStr,
+                });
+            } else {
+                window.DashboardBridge.postMessage({
+                    type: 'editRadarItem',
+                    id: itemId,
+                    label: draggedBlip.item.label,
+                    dateStr: dateStr,
+                });
+            }
         }
 
         // Hide drag tooltip
@@ -489,25 +586,60 @@
     function onClick(e) {
         // Suppress click-to-edit if we just finished dragging
         if (justFinishedDrag) { justFinishedDrag = false; return; }
-        if (!hoveredBlip) { return; }
+
         var popover = document.getElementById('radar-edit-popover');
         var labelInput = document.getElementById('edit-label');
         var dateInput = document.getElementById('edit-date');
         if (!popover || !labelInput || !dateInput) { return; }
 
-        labelInput.value = hoveredBlip.item.label;
-        var cd = new Date(hoveredBlip.item.date);
-        var yyyy = cd.getFullYear();
-        var mm = String(cd.getMonth() + 1).padStart(2, '0');
-        var dd = String(cd.getDate()).padStart(2, '0');
-        dateInput.value = yyyy + '-' + mm + '-' + dd;
-
         var rect = canvas.getBoundingClientRect();
-        popover.style.left = (e.clientX - rect.left + 12) + 'px';
-        popover.style.top = (e.clientY - rect.top - 40) + 'px';
-        popover.classList.remove('hidden');
-        popover._itemId = hoveredBlip.item.id;
-        labelInput.focus();
+        var mx = e.clientX - rect.left;
+        var my = e.clientY - rect.top;
+
+        if (hoveredBlip) {
+            // Skip edit popover for virtual blips (managed via Goals/TODOs UI)
+            if (hoveredBlip.item.id.startsWith('virt_')) { return; }
+            // Edit existing item
+            popover._mode = 'edit';
+            popover._itemId = hoveredBlip.item.id;
+            labelInput.value = hoveredBlip.item.label;
+            var cd = new Date(hoveredBlip.item.date);
+            var yyyy = cd.getFullYear();
+            var mm = String(cd.getMonth() + 1).padStart(2, '0');
+            var dd = String(cd.getDate()).padStart(2, '0');
+            dateInput.value = yyyy + '-' + mm + '-' + dd;
+
+            popover.style.left = (mx + 12) + 'px';
+            popover.style.top = (my - 40) + 'px';
+            popover.classList.remove('hidden');
+            labelInput.focus();
+        } else if (radarData && mx > LEFT_MARGIN && my >= TOP_MARGIN) {
+            // Click on empty canvas — add new item to the clicked row's swimlane
+            var rowIndex = Math.floor((my - TOP_MARGIN) / ROW_HEIGHT);
+            if (rowIndex >= 0 && rowIndex < radarData.swimlanes.length) {
+                var swimlane = radarData.swimlanes[rowIndex];
+                // Skip add-mode for virtual swimlanes
+                if (swimlane.id.startsWith('virt_sw_')) { return; }
+                var w = canvas.clientWidth;
+                var drawWidth = w - LEFT_MARGIN - RIGHT_MARGIN;
+                var days = Math.round(Math.max(0, Math.min(((mx - LEFT_MARGIN) / drawWidth) * MAX_DAYS, MAX_DAYS)));
+                var newDate = new Date();
+                newDate.setDate(newDate.getDate() + days);
+                var ny = newDate.getFullYear();
+                var nm = String(newDate.getMonth() + 1).padStart(2, '0');
+                var nd = String(newDate.getDate()).padStart(2, '0');
+
+                popover._mode = 'add';
+                popover._parentId = swimlane.id;
+                labelInput.value = '';
+                dateInput.value = ny + '-' + nm + '-' + nd;
+
+                popover.style.left = (mx + 12) + 'px';
+                popover.style.top = (my - 40) + 'px';
+                popover.classList.remove('hidden');
+                labelInput.focus();
+            }
+        }
     }
 
     function onMouseLeave() {
@@ -530,5 +662,5 @@
         if (tooltip) { tooltip.classList.add('hidden'); }
     }
 
-    window.RadarRenderer = { init: init, setData: setData, setSweepEnabled: setSweepEnabled };
+    window.RadarRenderer = { init: init, setData: setData, setSweepEnabled: setSweepEnabled, setFilters: setFilters };
 })();

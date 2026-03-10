@@ -8,6 +8,7 @@
         if (msg.type === 'statusUpdate') {
             renderStatus(msg.data);
             renderAgenda(msg.data);
+            renderGoals(msg.data);
         }
     });
 
@@ -94,13 +95,16 @@
             var row = document.createElement('div');
             row.className = 'agenda-item';
 
+            // Shape indicator based on item kind
             var dot = document.createElement('div');
-            dot.className = 'agenda-dot ' + item.urgency;
+            var kind = item.itemKind || 'radar';
+            dot.className = 'agenda-dot ' + item.urgency + ' shape-' + kind;
 
             var label = document.createElement('span');
             label.className = 'agenda-label';
             label.textContent = item.label;
-            label.title = item.date + ' — ' + item.label;
+            var kindLabel = kind === 'goal' ? 'Goal' : kind === 'milestone' ? 'Milestone' : kind === 'todo' ? 'Todo' : 'Radar';
+            label.title = kindLabel + ' — ' + item.date + ' — ' + item.label;
 
             var days = document.createElement('span');
             days.className = 'agenda-days ' + item.urgency;
@@ -119,6 +123,54 @@
         }
     }
 
+    function renderGoals(data) {
+        var container = document.getElementById('goals-status');
+        if (!container) { return; }
+        container.innerHTML = '';
+
+        if (!data.goalSections || data.goalSections.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'agenda-empty';
+            empty.textContent = 'No goal categories yet.';
+            container.appendChild(empty);
+            return;
+        }
+
+        for (var i = 0; i < data.goalSections.length; i++) {
+            var section = data.goalSections[i];
+
+            var row = document.createElement('div');
+            row.className = 'progress-row';
+
+            var label = document.createElement('div');
+            label.className = 'progress-label';
+
+            var nameEl = document.createElement('span');
+            nameEl.className = 'progress-name';
+            nameEl.textContent = section.name;
+
+            var countEl = document.createElement('span');
+            countEl.className = 'progress-count';
+            countEl.textContent = section.completed + '/' + section.total;
+
+            label.appendChild(nameEl);
+            label.appendChild(countEl);
+            row.appendChild(label);
+
+            var bar = document.createElement('div');
+            bar.className = 'progress-bar';
+
+            var fill = document.createElement('div');
+            fill.className = 'progress-fill ' + getProgressClass(section.avgProgress);
+            fill.style.width = section.avgProgress + '%';
+
+            bar.appendChild(fill);
+            row.appendChild(bar);
+
+            container.appendChild(row);
+        }
+    }
+
     function getProgressClass(percent) {
         if (percent >= 100) { return 'done'; }
         if (percent >= 60) { return 'high'; }
@@ -126,11 +178,4 @@
         return 'low';
     }
 
-    // Open dashboard button
-    var dashBtn = document.getElementById('open-dashboard-btn');
-    if (dashBtn) {
-        dashBtn.addEventListener('click', function () {
-            vscode.postMessage({ type: 'openDashboard' });
-        });
-    }
 })();

@@ -110,17 +110,15 @@ suite('Inc0ming Parser', () => {
 
     test('parses todo sections', () => {
         const result = parseIncoming(sampleIncoming);
-        // Default (empty) section + 3 named sections = 4
-        assert.strictEqual(result.todo.sections.length, 4);
-        assert.strictEqual(result.todo.sections[0].name, '');
-        assert.strictEqual(result.todo.sections[1].name, 'Work');
-        assert.strictEqual(result.todo.sections[2].name, 'Personal');
-        assert.strictEqual(result.todo.sections[3].name, 'Follow up');
+        assert.strictEqual(result.todo.sections.length, 3);
+        assert.strictEqual(result.todo.sections[0].name, 'Work');
+        assert.strictEqual(result.todo.sections[1].name, 'Personal');
+        assert.strictEqual(result.todo.sections[2].name, 'Follow up');
     });
 
     test('todo sections have kind and id', () => {
         const result = parseIncoming(sampleIncoming);
-        const section = result.todo.sections[1];
+        const section = result.todo.sections[0];
         assert.strictEqual(section.kind, 'todoSection');
         assert.ok(section.id.startsWith('ts_'));
     });
@@ -128,76 +126,69 @@ suite('Inc0ming Parser', () => {
     test('parses todo items within sections', () => {
         const result = parseIncoming(sampleIncoming);
         // Work section has 2 items
-        assert.strictEqual(result.todo.sections[1].items.length, 2);
+        assert.strictEqual(result.todo.sections[0].items.length, 2);
         // Personal section has 2 items
-        assert.strictEqual(result.todo.sections[2].items.length, 2);
+        assert.strictEqual(result.todo.sections[1].items.length, 2);
         // Follow up section has 1 item
-        assert.strictEqual(result.todo.sections[3].items.length, 1);
-    });
-
-    test('default section is empty when items come after headings', () => {
-        const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[0].items.length, 0);
+        assert.strictEqual(result.todo.sections[2].items.length, 1);
     });
 
     test('todo items have kind and id', () => {
         const result = parseIncoming(sampleIncoming);
-        const item = result.todo.sections[1].items[0];
+        const item = result.todo.sections[0].items[0];
         assert.strictEqual(item.kind, 'todo');
         assert.ok(item.id.startsWith('td_'));
     });
 
     test('parses unchecked items', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[1].items[0].text, '3/10 Presentation');
-        assert.strictEqual(result.todo.sections[1].items[0].completed, false);
+        assert.strictEqual(result.todo.sections[0].items[0].text, '3/10 Presentation');
+        assert.strictEqual(result.todo.sections[0].items[0].completed, false);
     });
 
     test('parses checked items', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[2].items[1].text, 'Reviews');
-        assert.strictEqual(result.todo.sections[2].items[1].completed, true);
+        assert.strictEqual(result.todo.sections[1].items[1].text, 'Reviews');
+        assert.strictEqual(result.todo.sections[1].items[1].completed, true);
     });
 
     test('parses detail sub-bullets as notes', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[1].items[0].notes, '- Title\n- Body\n- Closing');
+        assert.strictEqual(result.todo.sections[0].items[0].notes, '- Title\n- Body\n- Closing');
     });
 
     test('items without notes have empty string', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[2].items[0].notes, '');
+        assert.strictEqual(result.todo.sections[1].items[0].notes, '');
     });
 
     test('parses paragraph notes (indented without dash)', () => {
-        const input = `# TODO\n* [ ] Policy Reading\n    We recognize accomplishments.\n    Things the org is doing.`;
+        const input = `# TODO\n## Notes\n* [ ] Policy Reading\n    We recognize accomplishments.\n    Things the org is doing.`;
         const result = parseIncoming(input);
         assert.strictEqual(result.todo.sections[0].items[0].notes, 'We recognize accomplishments.\nThings the org is doing.');
     });
 
     test('parses mixed paragraph and bullet notes', () => {
-        const input = `# TODO\n* [ ] Policy Reading\n    Paragraph text here.\n    - Bullet one\n    - Bullet two\n    More paragraph text.`;
+        const input = `# TODO\n## Notes\n* [ ] Policy Reading\n    Paragraph text here.\n    - Bullet one\n    - Bullet two\n    More paragraph text.`;
         const result = parseIncoming(input);
         assert.strictEqual(result.todo.sections[0].items[0].notes, 'Paragraph text here.\n- Bullet one\n- Bullet two\nMore paragraph text.');
     });
 
     test('parses radar cross-reference', () => {
         const result = parseIncoming(sampleIncoming);
-        assert.strictEqual(result.todo.sections[1].items[0].radarLink, 'jFrog Blocking');
-        assert.strictEqual(result.todo.sections[2].items[0].radarLink, undefined);
+        assert.strictEqual(result.todo.sections[0].items[0].radarLink, 'jFrog Blocking');
+        assert.strictEqual(result.todo.sections[1].items[0].radarLink, undefined);
     });
 
     // ---- Items before any section heading ----
 
-    test('items before any section heading go into default section', () => {
+    test('items before any section heading are ignored', () => {
         const input = `# TODO\n* [ ] Unsectioned task\n## Later\n* [ ] Sectioned task`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.todo.sections.length, 2);
-        assert.strictEqual(result.todo.sections[0].name, '');
+        assert.strictEqual(result.todo.sections.length, 1);
+        assert.strictEqual(result.todo.sections[0].name, 'Later');
         assert.strictEqual(result.todo.sections[0].items.length, 1);
-        assert.strictEqual(result.todo.sections[0].items[0].text, 'Unsectioned task');
-        assert.strictEqual(result.todo.sections[1].name, 'Later');
-        assert.strictEqual(result.todo.sections[1].items.length, 1);
+        assert.strictEqual(result.todo.sections[0].items[0].text, 'Sectioned task');
     });
 
     // ---- Error handling ----
@@ -216,12 +207,15 @@ suite('Inc0ming Parser', () => {
     });
 
     test('handles todo-only content', () => {
-        const result = parseIncoming('# TODO\n* [ ] Test item');
-        const result2 = parseIncoming('# TODO\n* [ ] Test item');
+        const result = parseIncoming('# TODO\n## Tasks\n* [ ] Test item');
         assert.strictEqual(result.radar.swimlanes.length, 0);
-        // Default section with 1 item
         assert.strictEqual(result.todo.sections.length, 1);
         assert.strictEqual(result.todo.sections[0].items.length, 1);
+    });
+
+    test('ignores todo items before any section heading', () => {
+        const result = parseIncoming('# TODO\n* [ ] Orphan item');
+        assert.strictEqual(result.todo.sections.length, 0);
     });
 
     test('reports error for invalid date format', () => {
@@ -278,7 +272,7 @@ suite('Inc0ming Parser', () => {
     });
 
     test('quotes section is independent of section ordering', () => {
-        const input = `# TODO\n* [ ] Task\n\n# Quotes\n> Test quote. — Author\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
+        const input = `# TODO\n## Tasks\n* [ ] Task\n\n# Quotes\n> Test quote. — Author\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
         const result = parseIncoming(input);
         assert.strictEqual(result.quotes.items.length, 1);
         assert.strictEqual(result.quotes.items[0].text, 'Test quote.');
@@ -343,7 +337,7 @@ suite('Inc0ming Parser', () => {
     });
 
     test('reminders section is independent of section ordering', () => {
-        const input = `# TODO\n* [ ] Task\n\n# Reminders\n\n## Standup (Mon)\n- Item\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
+        const input = `# TODO\n## Tasks\n* [ ] Task\n\n# Reminders\n\n## Standup (Mon)\n- Item\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
         const result = parseIncoming(input);
         assert.strictEqual(result.reminders.meetings.length, 1);
         assert.strictEqual(result.radar.swimlanes.length, 1);
@@ -354,6 +348,139 @@ suite('Inc0ming Parser', () => {
         const input = `# Reminders\n\n# Radar\n\n# TODO`;
         const result = parseIncoming(input);
         assert.strictEqual(result.reminders.meetings.length, 0);
+    });
+
+    // ---- Goals Section ----
+
+    test('parses goal sections with ## heading', () => {
+        const input = `# Goals\n\n## Q2 2026\n- [ ] Complete AWS Certification\n    - [ ] Module 5 (50%)\n    - [ ] Module 6 (50%)\n\n## Personal\n- [ ] Read 6 books`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections.length, 2);
+        assert.strictEqual(result.goals.sections[0].name, 'Q2 2026');
+        assert.strictEqual(result.goals.sections[1].name, 'Personal');
+    });
+
+    test('parses goal items (checked/unchecked)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Goal one\n- [x] Goal two`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items.length, 2);
+        assert.strictEqual(result.goals.sections[0].items[0].completed, false);
+        assert.strictEqual(result.goals.sections[0].items[0].text, 'Goal one');
+        assert.strictEqual(result.goals.sections[0].items[1].completed, true);
+        assert.strictEqual(result.goals.sections[0].items[1].text, 'Goal two');
+    });
+
+    test('parses milestones with weights (N%)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Big goal\n    - [x] Step A (30%)\n    - [ ] Step B (70%)`;
+        const result = parseIncoming(input);
+        const goal = result.goals.sections[0].items[0];
+        assert.strictEqual(goal.milestones.length, 2);
+        assert.strictEqual(goal.milestones[0].text, 'Step A');
+        assert.strictEqual(goal.milestones[0].weight, 30);
+        assert.strictEqual(goal.milestones[0].completed, true);
+        assert.strictEqual(goal.milestones[1].text, 'Step B');
+        assert.strictEqual(goal.milestones[1].weight, 70);
+        assert.strictEqual(goal.milestones[1].completed, false);
+    });
+
+    test('parses milestones without weights (equal distribution)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Goal\n    - [ ] A\n    - [ ] B\n    - [ ] C`;
+        const result = parseIncoming(input);
+        const milestones = result.goals.sections[0].items[0].milestones;
+        assert.strictEqual(milestones.length, 3);
+        assert.strictEqual(milestones[0].weight, 34);
+        assert.strictEqual(milestones[1].weight, 33);
+        assert.strictEqual(milestones[2].weight, 33);
+    });
+
+    test('parses goal completion notes', () => {
+        const input = `# Goals\n\n## Work\n- [x] Ship phase 1\n    Completed 4/8/26 — two days ahead`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].completionNote, '4/8/26 — two days ahead');
+    });
+
+    test('parses milestone completion notes', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Goal\n    - [x] Step A (50%)\n        Completed 3/1 — passed practice exam\n    - [ ] Step B (50%)`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].milestones[0].completionNote, '3/1 — passed practice exam');
+        assert.strictEqual(result.goals.sections[0].items[0].milestones[1].completionNote, '');
+    });
+
+    test('parses {radar:Name} cross-references on goals', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Complete cert {radar:Certifications}\n- [ ] Other goal`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].radarLink, 'Certifications');
+        assert.strictEqual(result.goals.sections[0].items[0].text, 'Complete cert');
+        assert.strictEqual(result.goals.sections[0].items[1].radarLink, undefined);
+    });
+
+    test('goal sections have kind and id (gs_, gl_, ms_)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Goal\n    - [ ] Milestone (100%)`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].kind, 'goalSection');
+        assert.ok(result.goals.sections[0].id.startsWith('gs_'));
+        assert.strictEqual(result.goals.sections[0].items[0].kind, 'goal');
+        assert.ok(result.goals.sections[0].items[0].id.startsWith('gl_'));
+        assert.strictEqual(result.goals.sections[0].items[0].milestones[0].kind, 'milestone');
+        assert.ok(result.goals.sections[0].items[0].milestones[0].id.startsWith('ms_'));
+    });
+
+    test('empty goals section returns empty', () => {
+        const input = `# Goals\n\n# Radar\n\n# TODO`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections.length, 0);
+    });
+
+    test('goals section is independent of section ordering', () => {
+        const input = `# TODO\n## Tasks\n* [ ] Task\n\n# Goals\n\n## Work\n- [ ] Goal\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections.length, 1);
+        assert.strictEqual(result.goals.sections[0].items.length, 1);
+        assert.strictEqual(result.radar.swimlanes.length, 1);
+        assert.strictEqual(result.todo.sections[0].items.length, 1);
+    });
+
+    test('handles goals with no milestones', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Simple goal\n- [x] Done goal`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].milestones.length, 0);
+        assert.strictEqual(result.goals.sections[0].items[1].milestones.length, 0);
+    });
+
+    // ---- Due Date Section ----
+
+    test('parses Due: on goals (4-space indent)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Complete cert\n    Due: 5/15/26`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].dueDate, '5/15/26');
+    });
+
+    test('parses Due: on milestones (8-space indent)', () => {
+        const input = `# Goals\n\n## Work\n- [ ] Goal\n    - [ ] Step A (50%)\n        Due: 5/1/26\n    - [ ] Step B (50%)`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.goals.sections[0].items[0].milestones[0].dueDate, '5/1/26');
+        assert.strictEqual(result.goals.sections[0].items[0].milestones[1].dueDate, '');
+    });
+
+    // ---- Todo Due Date ----
+
+    test('parses todo Due: line', () => {
+        const input = `# TODO\n## Tasks\n* [ ] Finish report\n    Due: 4/1/26`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.todo.sections[0].items[0].dueDate, '4/1/26');
+    });
+
+    test('todo dueDate defaults to empty string', () => {
+        const input = `# TODO\n## Tasks\n* [ ] Simple task`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.todo.sections[0].items[0].dueDate, '');
+    });
+
+    test('todo Due: line does not end up in notes', () => {
+        const input = `# TODO\n## Tasks\n* [ ] Task\n    Due: 4/1/26\n    - Note one`;
+        const result = parseIncoming(input);
+        assert.strictEqual(result.todo.sections[0].items[0].dueDate, '4/1/26');
+        assert.strictEqual(result.todo.sections[0].items[0].notes, '- Note one');
     });
 
     // ---- ID reset ----

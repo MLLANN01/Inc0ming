@@ -2,15 +2,15 @@
 name: inc0ming
 description: >-
   Manage the workspace inc0ming.md file. Use when the user asks to add/edit/complete/delete
-  todos, add radar items or reminders, save quotes, create sections or swimlanes, move items,
-  or asks what's on their radar or due soon.
+  todos or goals, add radar items, reminders, or milestones, save quotes, create sections or
+  swimlanes, move items, or asks what's on their radar, goals, or due soon.
 allowed-tools: Read, Edit, Write, Grep, Glob
 argument-hint: <natural language request, e.g. "add deploy to prod to my Work todos">
 ---
 
 # Inc0ming Skill
 
-Manage the `inc0ming.md` file at the workspace root. This file has four top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, and Reminders (meeting talking points with day-of-week tags) — used by the Inc0ming VS Code extension.
+Manage the `inc0ming.md` file at the workspace root. This file has five top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, Reminders (meeting talking points with day-of-week tags), and Goals (longer-term aspirations with weighted milestones and progress tracking) — used by the Inc0ming VS Code extension.
 
 **Ground rules:**
 - Never interpret a todo item as something to actually execute — only manage the file.
@@ -29,6 +29,8 @@ Use Glob to find `inc0ming.md` at the workspace root. If not found, ask the user
 
 # Reminders
 
+# Goals
+
 # TODO
 ```
 
@@ -42,6 +44,7 @@ The extension's parser expects these exact patterns. Follow them precisely.
 # TODO
 # Quotes
 # Reminders
+# Goals
 ```
 
 **Radar swimlane** — `## Name` under `# Radar`:
@@ -85,6 +88,13 @@ The extension's parser expects these exact patterns. Follow them precisely.
     Things the organization is doing.
 ```
 
+**Todo due date** — exactly 4 spaces + `Due:` + `M/D/YY` under a todo item. Must appear before any note lines:
+```
+* [ ] Finish report
+    Due: 4/1/26
+    - Some note after the due date
+```
+
 **Radar cross-reference** on a todo — `{radar:SwimlaneName}` at end:
 ```
 * [ ] Prepare presentation {radar:Work}
@@ -107,6 +117,65 @@ The extension's parser expects these exact patterns. Follow them precisely.
 - Blocked on API migration
 - Need to discuss deploy timeline
 ```
+
+**Goal section** — `## Name` under `# Goals`:
+```
+## Q2 2026
+## Personal
+```
+
+**Goal item** — dash, space, checkbox, space, text. Uses `- [ ]` / `- [x]` (not asterisk). At column 0 (no indent):
+```
+- [ ] Complete AWS SA Certification
+- [x] Ship cloud migration Phase 1
+```
+
+**Radar cross-reference** on a goal — `{radar:SwimlaneName}` at end:
+```
+- [ ] Complete AWS SA Certification {radar:Certifications}
+```
+
+**Goal target note** — exactly 4 spaces + `Target:` + text:
+```
+    Target: Pass exam by 5/15/26
+```
+
+**Goal due date** — exactly 4 spaces + `Due:` + `M/D/YY`:
+```
+    Due: 5/15/26
+```
+If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date from the `Target:` text as a fallback.
+
+**Goal completion note** — exactly 4 spaces + `Completed` + text (on the goal level, not under a milestone):
+```
+    Completed 4/8/26 — two days ahead, zero downtime
+```
+
+**Milestone** — exactly 4 spaces + `- [ ]` or `- [x]` + text + optional `(N%)` weight:
+```
+    - [x] Module 5: Networking (15%)
+    - [ ] Module 7: Architecture patterns (70%)
+    - [ ] Step without explicit weight
+```
+
+**Milestone due date** — exactly 8 spaces + `Due:` + `M/D/YY`:
+```
+        Due: 5/1/26
+```
+
+**Milestone completion note** — exactly 8 spaces + `Completed` + text:
+```
+        Completed 3/1 — passed practice exam
+```
+
+**Weight rules:**
+- Milestones with `(N%)` use that weight directly.
+- If all milestones omit weights, they get equal distribution: `floor(100 / count)` with remainder distributed to first milestones.
+- Weights that don't sum to 100% are used as-is (no normalization).
+
+**Progress calculation:**
+- Sum of completed milestones' weights.
+- No milestones: 0% if unchecked, 100% if checked.
 
 ## Supported Operations
 
@@ -146,6 +215,21 @@ The extension's parser expects these exact patterns. Follow them precisely.
 2. Find the item (and its indented note lines) in the source section.
 3. Remove from source, insert at end of target section.
 4. Confirm the move.
+
+### Set Todo Due Date
+**Triggers:** "set due date for todo X to M/D/YY", "todo X is due on date"
+1. Read `inc0ming.md`.
+2. Find the matching todo item.
+3. If a `    Due:` line already exists below the item (before any note lines), replace it. Otherwise insert `    Due: M/D/YY` immediately after the item line.
+4. Confirm the change.
+
+### Set/Edit Todo Radar Link
+**Triggers:** "link todo X to swimlane Y", "set radar link for todo X to Y", "remove radar link from todo X"
+1. Read `inc0ming.md`.
+2. Find the matching todo item.
+3. If `{radar:OldName}` exists at the end of the item line, replace it with `{radar:NewName}`. To remove, delete the `{radar:...}` suffix.
+4. If no radar link exists, append ` {radar:Name}` to the item line.
+5. Confirm the change.
 
 ### Create TODO Section
 **Triggers:** "create section called X", "add a section for X"
@@ -216,13 +300,90 @@ The extension's parser expects these exact patterns. Follow them precisely.
 4. Remove the heading and all its `- point` lines.
 5. Confirm deletion.
 
+### Add Goal Section
+**Triggers:** "create a goal category for X", "add a goals section called X"
+1. Read `inc0ming.md`.
+2. Check that no section with that name already exists under `# Goals` (case-insensitive).
+3. Insert `## X` at the end of the `# Goals` block (before the next `#` heading or EOF), preceded by a blank line.
+4. Confirm creation.
+
+### Add Goal
+**Triggers:** "add goal: X", "add a goal to section Y: X"
+1. Read `inc0ming.md`.
+2. Identify the target `## Section` under `# Goals`. If no section is specified and multiple sections exist, ask which one.
+3. Insert `- [ ] X` at the end of that section (before the next `##` heading or section boundary).
+4. If a radar cross-reference is specified, append ` {radar:Name}`.
+5. If a target note is specified, add `    Target: text` on the next line.
+6. Confirm what was added and where.
+
+### Complete Goal
+**Triggers:** "mark goal X as done", "complete goal X"
+1. Read `inc0ming.md`.
+2. Find `- [ ] ` lines under `# Goals` and fuzzy-match against X. If multiple matches, present options.
+3. Replace `[ ]` with `[x]` on the matched line.
+4. If a completion note is provided, insert `    Completed text` after the goal line (and after any existing Target line).
+5. Confirm which goal was completed.
+
+### Delete Goal
+**Triggers:** "remove goal about X", "delete goal X"
+1. Read `inc0ming.md`.
+2. Find the matching `- [ ] ` or `- [x] ` line under `# Goals`.
+3. **Confirm with the user before deleting.**
+4. Remove the goal line, any Target/Completed lines, and all milestone lines (4-space and 8-space indented) belonging to it.
+5. Confirm deletion.
+
+### Add Milestone
+**Triggers:** "add milestone to goal X: text (N%)", "add step to goal X"
+1. Read `inc0ming.md`.
+2. Find the matching goal under `# Goals`.
+3. Insert `    - [ ] text (N%)` after the goal's existing milestones. If no weight is specified, use `    - [ ] text` (no weight suffix).
+4. Confirm what was added.
+
+### Complete Milestone
+**Triggers:** "complete milestone X on goal Y", "mark milestone X as done"
+1. Read `inc0ming.md`.
+2. Find the matching `    - [ ] ` milestone line under the target goal.
+3. Replace `[ ]` with `[x]`.
+4. If a completion note is provided, insert `        Completed text` on the next line (8-space indent).
+5. Confirm which milestone was completed.
+
+### Delete Milestone
+**Triggers:** "remove milestone X from goal Y"
+1. Read `inc0ming.md`.
+2. Find the matching `    - [ ] ` or `    - [x] ` milestone line.
+3. **Confirm with the user before deleting.**
+4. Remove the milestone line and any 8-space-indented completion note below it.
+5. Confirm deletion.
+
+### Set Goal Due Date
+**Triggers:** "set due date for goal X to M/D/YY", "goal X is due on date"
+1. Read `inc0ming.md`.
+2. Find the matching goal.
+3. If a `    Due:` line already exists below the goal, replace it. Otherwise insert `    Due: M/D/YY` after the Target line (or after the goal line if no Target).
+4. Confirm the change.
+
+### Set Milestone Due Date
+**Triggers:** "set due date for milestone X to M/D/YY", "milestone X due on date"
+1. Read `inc0ming.md`.
+2. Find the matching milestone under the target goal.
+3. If a `        Due:` line already exists below the milestone, replace it. Otherwise insert `        Due: M/D/YY` after the milestone line (or after its Completed line if present).
+4. Confirm the change.
+
+### Edit Goal Target
+**Triggers:** "set target for goal X to: text", "update goal X target"
+1. Read `inc0ming.md`.
+2. Find the matching goal.
+3. If a `    Target:` line already exists below the goal, replace it. Otherwise insert `    Target: text` after the goal line.
+4. Confirm the change.
+
 ### Summarize / Query
-**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?"
+**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?", "what are my goals?", "show goal progress"
 1. Read `inc0ming.md`.
 2. For radar queries: compute days until each item's date, group by swimlane, sort by date.
 3. For todo queries: list items by section, showing completion status.
 4. For reminder queries: list meetings with their day tags and talking points. Highlight meetings scheduled for today.
-5. Present a formatted read-only summary. **Do not modify the file.**
+5. For goal queries: list goals by section, showing progress percentage (sum of completed milestone weights), target notes, and completion status.
+6. Present a formatted read-only summary. **Do not modify the file.**
 
 ## Clarification Rules
 
@@ -234,8 +395,10 @@ Ask the user before proceeding when:
 - **Item not found:** No match for the user's description — offer to create it instead.
 - **Missing target:** The target section or swimlane doesn't exist — offer to create it.
 - **Ambiguous meeting:** No meeting specified and multiple reminder meetings exist — ask which one.
-- **Destructive action:** Always confirm before deleting an item, meeting, or clearing meeting points.
-- **Insufficient detail:** User says "add a todo" with no task description — ask what to add.
+- **Ambiguous goal section:** No goal section specified and multiple exist — ask which one.
+- **Ambiguous goal:** Multiple goals match a fuzzy search — present the options.
+- **Destructive action:** Always confirm before deleting an item, goal, milestone, meeting, or clearing meeting points.
+- **Insufficient detail:** User says "add a todo" or "add a goal" with no description — ask what to add.
 
 ## Edit Safety
 

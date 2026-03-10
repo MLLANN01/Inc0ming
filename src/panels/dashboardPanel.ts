@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
 import {
-    RadarData, TodoData, DayOfWeek,
-    SerializedRadarData, WebviewMessage,
+    RadarData, RadarItem, SerializedRadarData, WebviewMessage,
 } from '../models/types';
 import { parseDayTags } from '../parsers/incomingParser';
+import { getNonce } from '../utils/nonce';
+import { isVirtual, isVirtualGoal, isVirtualMilestone, isVirtualTodo } from '../utils/virtualItems';
 
 export class DashboardPanel {
     public static currentPanel: DashboardPanel | undefined;
@@ -61,32 +62,52 @@ export class DashboardPanel {
     }
 
     private _sendAllData(): void {
-        const radarData = this._serializeRadar(this._store.radar);
-        this._panel.webview.postMessage({ type: 'radarUpdate', data: radarData });
-        this._panel.webview.postMessage({ type: 'quotesUpdate', data: this._store.quotes });
-        this._panel.webview.postMessage({ type: 'remindersUpdate', data: this._store.reminders });
-
-        // Send layout BEFORE todo data so GridManager has correct state when render() calls applyLayout()
-        const layout = this._context.workspaceState.get('inc0ming.gridLayout');
-        this._panel.webview.postMessage({ type: 'layoutUpdate', layout: layout || {} });
-        this._panel.webview.postMessage({ type: 'todoUpdate', data: this._store.todo });
-
+        const augmented = this._store.computeAugmentedRadar();
+        const radar = this._serializeRadar(augmented);
+        const swimlaneNames = augmented.swimlanes.map(s => s.name);
+        const layout = this._context.workspaceState.get('inc0ming.gridLayout') || {};
         const radarVisible = this._context.workspaceState.get('inc0ming.radarVisible', true);
-        this._panel.webview.postMessage({ type: 'radarVisibleUpdate', visible: radarVisible });
+        const sectionOrder = this._context.workspaceState.get('inc0ming.sectionOrder');
+        const parseErrors = this._store.errors.length > 0 ? this._store.errors : undefined;
 
-        if (this._store.errors.length > 0) {
-            this._panel.webview.postMessage({ type: 'parseErrors', errors: this._store.errors });
-        }
+        this._panel.webview.postMessage({
+            type: 'allData',
+            payload: {
+                radar,
+                swimlaneNames,
+                quotes: this._store.quotes,
+                reminders: this._store.reminders,
+                goals: this._store.goals,
+                layout,
+                todo: this._store.todo,
+                radarVisible,
+                sectionOrder,
+                parseErrors,
+            },
+        });
+    }
+
+    private static _itemShape(id: string): 'circle' | 'diamond' | 'flag' | 'star' | undefined {
+        if (isVirtualGoal(id)) { return 'diamond'; }
+        if (isVirtualMilestone(id)) { return 'flag'; }
+        if (isVirtualTodo(id)) { return 'star'; }
+        return undefined;
     }
 
     private _serializeRadar(data: RadarData): SerializedRadarData {
+        const serializeItem = (i: RadarItem) => ({
+            ...i,
+            date: i.date.toISOString(),
+            virtual: isVirtual(i.id) ? true : undefined,
+            shape: DashboardPanel._itemShape(i.id),
+        });
         return {
             swimlanes: data.swimlanes.map(s => ({
                 ...s,
-                items: s.items.map(i => ({ ...i, date: i.date.toISOString() })),
+                items: s.items.map(serializeItem),
                 subGroups: s.subGroups.map(sg => ({
                     ...sg,
-                    items: sg.items.map(i => ({ ...i, date: i.date.toISOString() })),
+                    items: sg.items.map(serializeItem),
                 })),
             })),
         };
@@ -101,6 +122,9 @@ export class DashboardPanel {
                 return; // Don't save store data for layout changes
             case 'saveRadarVisible':
                 await this._context.workspaceState.update('inc0ming.radarVisible', msg.visible);
+                return;
+            case 'saveSectionOrder':
+                await this._context.workspaceState.update('inc0ming.sectionOrder', msg.order);
                 return;
             case 'toggleTodo':
                 success = this._store.toggleTodo(msg.id);
@@ -193,6 +217,57 @@ export class DashboardPanel {
             case 'editTodoNotes':
                 this._store.editTodoNotes(msg.id, msg.notes);
                 break;
+            case 'addGoalSection':
+                this._store.addGoalSection(msg.name);
+                break;
+            case 'renameGoalSection':
+                this._store.renameGoalSection(msg.id, msg.name);
+                break;
+            case 'deleteGoalSection':
+                this._store.deleteGoalSection(msg.id);
+                break;
+            case 'addGoal':
+                this._store.addGoal(msg.sectionId, msg.text);
+                break;
+            case 'editGoal':
+                this._store.editGoal(msg.id, msg.text);
+                break;
+            case 'deleteGoal':
+                this._store.deleteGoal(msg.id);
+                break;
+            case 'toggleGoal':
+                this._store.toggleGoal(msg.id, msg.completionNote);
+                break;
+            case 'editGoalCompletionNote':
+                this._store.editGoalCompletionNote(msg.id, msg.completionNote);
+                break;
+            case 'addMilestone':
+                this._store.addMilestone(msg.goalId, msg.text, msg.weight);
+                break;
+            case 'editMilestone':
+                this._store.editMilestone(msg.id, msg.text, msg.weight);
+                break;
+            case 'deleteMilestone':
+                this._store.deleteMilestone(msg.id);
+                break;
+            case 'toggleMilestone':
+                this._store.toggleMilestone(msg.id, msg.completionNote);
+                break;
+            case 'editGoalDueDate':
+                this._store.editGoalDueDate(msg.id, msg.dueDate);
+                break;
+            case 'editMilestoneDueDate':
+                this._store.editMilestoneDueDate(msg.id, msg.dueDate);
+                break;
+            case 'editTodoDueDate':
+                this._store.editTodoDueDate(msg.id, msg.dueDate);
+                break;
+            case 'editTodoRadarLink':
+                this._store.editTodoRadarLink(msg.id, msg.radarLink);
+                break;
+            case 'editGoalRadarLink':
+                this._store.editGoalRadarLink(msg.id, msg.radarLink);
+                break;
             default:
                 return; // Unknown message, don't save
         }
@@ -211,6 +286,9 @@ export class DashboardPanel {
         const quoteJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'quoteRenderer.js'));
         const gridJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'gridManager.js'));
         const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
+        const goalsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'goalsRenderer.js'));
+        const dateUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'dateUtils.js'));
+        const editUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'editUtils.js'));
 
         const nonce = getNonce();
 
@@ -237,7 +315,24 @@ export class DashboardPanel {
             <div class="legend-item"><span class="legend-dot urgent"></span> 0\u201330 days</div>
             <div class="legend-item"><span class="legend-dot warning"></span> ~90 days</div>
             <div class="legend-item"><span class="legend-dot normal"></span> ~180 days</div>
-            <button id="toggle-past-btn" class="legend-toggle" title="Toggle past items">Show Past</button>
+        </div>
+        <div class="radar-filters">
+            <button class="radar-filter active" data-shape="circle" title="Toggle radar items">
+                <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="currentColor"/></svg>
+                Radar
+            </button>
+            <button class="radar-filter active" data-shape="diamond" title="Toggle goals">
+                <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,6 6,11 1,6" fill="currentColor"/></svg>
+                Goals
+            </button>
+            <button class="radar-filter active" data-shape="flag" title="Toggle milestones">
+                <svg width="12" height="12" viewBox="0 0 12 12"><line x1="3" y1="2" x2="3" y2="11" stroke="currentColor" stroke-width="1.5"/><polygon points="3,2 10,4.5 3,7" fill="currentColor"/></svg>
+                Milestones
+            </button>
+            <button class="radar-filter active" data-shape="star" title="Toggle TODOs">
+                <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 7.5,4.5 11,4.8 8.3,7.2 9.1,11 6,9 2.9,11 3.7,7.2 1,4.8 4.5,4.5" fill="currentColor"/></svg>
+                TODOs
+            </button>
         </div>
         <div id="radar-tooltip" class="tooltip hidden"></div>
         <div id="radar-edit-popover" class="popover hidden">
@@ -250,64 +345,78 @@ export class DashboardPanel {
         </div>
     </div>
 
-    <div id="swimlane-details-container">
-        <div class="section-header collapsible" id="swimlane-details-header">
-            <span class="collapse-chevron open">\u25bc</span> Swim Lane Details
-        </div>
-        <div id="swimlane-details-body">
-            <div id="new-swimlane-row">
-                <input type="text" id="new-swimlane-input" placeholder="New swim lane name..">
-                <button id="add-swimlane-btn">+ Add Lane</button>
+    <div id="new-swimlane-row">
+        <input type="text" id="new-swimlane-input" placeholder="New swim lane name..">
+        <button id="add-swimlane-btn">+ Add Lane</button>
+    </div>
+
+    <div id="sections-container">
+        <div id="todo-container" data-section-key="todo">
+            <div class="section-header collapsible" id="todo-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron open">\u25bc</span> TODO
             </div>
-            <div id="swimlane-cards" class="swimlane-cards"></div>
+            <div id="todo-body">
+                <div id="new-section-row">
+                    <input type="text" id="new-section-input" placeholder="New section name...">
+                    <button id="add-section-btn">+ Add Section</button>
+                </div>
+                <div id="todo-grid"></div>
+            </div>
+        </div>
+
+        <div id="reminders-container" data-section-key="reminders">
+            <div class="section-header collapsible" id="reminders-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron open">\u25bc</span> Reminders
+            </div>
+            <div id="reminders-body">
+                <div id="new-meeting-row">
+                    <input type="text" id="new-meeting-name" placeholder="Meeting name...">
+                    <input type="text" id="new-meeting-days" placeholder="Days (e.g. Mon, Wed, Fri)">
+                    <button id="add-meeting-btn">+ Add Meeting</button>
+                </div>
+                <div id="reminders-grid"></div>
+            </div>
+        </div>
+
+        <div id="goals-container" data-section-key="goals">
+            <div class="section-header collapsible" id="goals-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron open">\u25bc</span> Goals
+            </div>
+            <div id="goals-body">
+                <div id="new-goal-section-row">
+                    <input type="text" id="new-goal-section-input" placeholder="New goal category...">
+                    <button id="add-goal-section-btn">+ Add Category</button>
+                </div>
+                <div id="goals-grid"></div>
+            </div>
+        </div>
+
+        <div id="quotes-manage-container" data-section-key="quotes">
+            <div class="section-header collapsible" id="quotes-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron closed">\u25bc</span> Inspiration
+            </div>
+            <div id="quotes-body" class="collapsed">
+                <div id="quotes-list"></div>
+                <div id="new-quote-row">
+                    <input type="text" id="new-quote-text" placeholder="Quote text...">
+                    <input type="text" id="new-quote-attr" placeholder="Attribution (optional)">
+                    <button id="add-quote-btn">+ Add</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="todo-container">
-        <div class="section-header collapsible" id="todo-header">
-            <span class="collapse-chevron open">\u25bc</span> TODO
-        </div>
-        <div id="todo-body">
-            <div id="new-section-row">
-                <input type="text" id="new-section-input" placeholder="New section name...">
-                <button id="add-section-btn">+ Add Section</button>
-            </div>
-            <div id="todo-grid"></div>
-        </div>
-    </div>
-
-    <div id="reminders-container">
-        <div class="section-header collapsible" id="reminders-header">
-            <span class="collapse-chevron open">\u25bc</span> Reminders
-        </div>
-        <div id="reminders-body">
-            <div id="new-meeting-row">
-                <input type="text" id="new-meeting-name" placeholder="Meeting name...">
-                <input type="text" id="new-meeting-days" placeholder="Days (e.g. Mon, Wed, Fri)">
-                <button id="add-meeting-btn">+ Add Meeting</button>
-            </div>
-            <div id="reminders-grid"></div>
-        </div>
-    </div>
-
-    <div id="quotes-manage-container">
-        <div class="section-header collapsible" id="quotes-header">
-            <span class="collapse-chevron closed">\u25bc</span> Inspiration
-        </div>
-        <div id="quotes-body" class="collapsed">
-            <div id="quotes-list"></div>
-            <div id="new-quote-row">
-                <input type="text" id="new-quote-text" placeholder="Quote text...">
-                <input type="text" id="new-quote-attr" placeholder="Attribution (optional)">
-                <button id="add-quote-btn">+ Add</button>
-            </div>
-        </div>
-    </div>
-
+    <script nonce="${nonce}" src="${dateUtilsJsUri}"></script>
+    <script nonce="${nonce}" src="${editUtilsJsUri}"></script>
     <script nonce="${nonce}" src="${radarJsUri}"></script>
     <script nonce="${nonce}" src="${todoJsUri}"></script>
     <script nonce="${nonce}" src="${quoteJsUri}"></script>
     <script nonce="${nonce}" src="${reminderJsUri}"></script>
+    <script nonce="${nonce}" src="${goalsJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>
@@ -322,13 +431,4 @@ export class DashboardPanel {
             if (d) { d.dispose(); }
         }
     }
-}
-
-function getNonce(): string {
-    let text = '';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return text;
 }

@@ -71,6 +71,39 @@ export interface ReminderData {
     meetings: ReminderMeeting[];
 }
 
+// ===== Goal Models =====
+export interface GoalMilestone {
+    kind: 'milestone';
+    id: string;
+    text: string;
+    completed: boolean;
+    weight: number;             // percentage, e.g. 15 for 15%
+    completionNote: string;     // "Completed 3/25 — scored 92%"
+    dueDate: string;            // M/D/YY or empty string
+}
+
+export interface GoalItem {
+    kind: 'goal';
+    id: string;
+    text: string;
+    completed: boolean;
+    milestones: GoalMilestone[];
+    completionNote: string;     // "Completed 4/8 — ahead of schedule"
+    dueDate: string;            // M/D/YY or empty string
+    radarLink?: string;
+}
+
+export interface GoalSection {
+    kind: 'goalSection';
+    id: string;
+    name: string;
+    items: GoalItem[];
+}
+
+export interface GoalData {
+    sections: GoalSection[];
+}
+
 // ===== Todo Models =====
 export interface TodoItem {
     kind: 'todo';
@@ -78,6 +111,7 @@ export interface TodoItem {
     text: string;
     completed: boolean;
     notes: string;
+    dueDate: string;            // M/D/YY or empty string
     radarLink?: string;
 }
 
@@ -109,6 +143,7 @@ export interface ParseResult {
     todo: TodoData;
     quotes: QuoteData;
     reminders: ReminderData;
+    goals: GoalData;
     errors: ParseError[];
     unparsedLines: UnparsedLine[];
 }
@@ -118,6 +153,8 @@ export interface SerializedRadarItem {
     id: string;
     date: string;
     label: string;
+    virtual?: boolean;
+    shape?: 'circle' | 'diamond' | 'flag' | 'star';
 }
 
 export interface SerializedRadarSubGroup {
@@ -146,6 +183,7 @@ export type ExtensionMessage =
     | { type: 'todoUpdate'; data: TodoData }
     | { type: 'quotesUpdate'; data: QuoteData }
     | { type: 'remindersUpdate'; data: ReminderData }
+    | { type: 'goalsUpdate'; data: GoalData }
     | { type: 'parseErrors'; errors: ParseError[] };
 
 // Webview → Extension
@@ -180,5 +218,23 @@ export type WebviewMessage =
     | { type: 'editPoint'; id: string; text: string }
     | { type: 'deletePoint'; id: string }
     | { type: 'clearMeeting'; id: string }
-    | { type: 'editTodoNotes'; id: string; notes: string };
+    | { type: 'editTodoNotes'; id: string; notes: string }
+    | { type: 'addGoalSection'; name: string }
+    | { type: 'renameGoalSection'; id: string; name: string }
+    | { type: 'deleteGoalSection'; id: string }
+    | { type: 'addGoal'; sectionId: string; text: string }
+    | { type: 'editGoal'; id: string; text: string }
+    | { type: 'deleteGoal'; id: string }
+    | { type: 'toggleGoal'; id: string; completionNote: string }
+    | { type: 'editGoalCompletionNote'; id: string; completionNote: string }
+    | { type: 'addMilestone'; goalId: string; text: string; weight: number }
+    | { type: 'editMilestone'; id: string; text: string; weight: number }
+    | { type: 'deleteMilestone'; id: string }
+    | { type: 'toggleMilestone'; id: string; completionNote: string }
+    | { type: 'editGoalDueDate'; id: string; dueDate: string }
+    | { type: 'editMilestoneDueDate'; id: string; dueDate: string }
+    | { type: 'editTodoDueDate'; id: string; dueDate: string }
+    | { type: 'editTodoRadarLink'; id: string; radarLink: string }
+    | { type: 'editGoalRadarLink'; id: string; radarLink: string }
+    | { type: 'saveSectionOrder'; order: string[] };
 

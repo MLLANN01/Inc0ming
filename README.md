@@ -4,16 +4,16 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 
 ![Radar Dashboard](./media/DemoImage1.png)
 
-![TODO Grid](./media/DemoImage2.png)
-
 ## Features
 
 - **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days)
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
+- **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
 - **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
+- **Radar Tree View** — Hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons
 - **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
 
 ## Getting Started
@@ -61,6 +61,20 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 
 ## Backlog
 * [ ] Refactor auth module {radar:Work}
+
+# Goals
+
+## Q2 2026
+- [ ] Complete AWS SA Certification {radar:Certifications}
+    Target: Pass exam by 5/15/26
+    Due: 5/15/26
+    - [x] Module 5: Networking (15%)
+        Completed 3/1 — passed practice exam
+    - [ ] Module 7: Architecture patterns (70%)
+        Due: 5/1/26
+    - [ ] Take practice exams (15%)
+- [x] Ship cloud migration Phase 1
+    Completed 4/8/26 — two days ahead, zero downtime
 ```
 
 ### Format Reference
@@ -73,12 +87,22 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 | Radar item | `- M/D/YY - Label` (no leading zeros, 2-digit year) |
 | Todo section | `## Name` under `# TODO` |
 | Todo item | `* [ ] Text` or `* [x] Text` |
+| Todo due date | `    Due: M/D/YY` (4 spaces indent, before notes) |
 | Todo note (paragraph) | `    Text` (4 spaces indent, no dash) |
 | Todo note (bullet) | `    - Text` (4 spaces indent + dash) |
 | Radar link | `* [ ] Text {radar:Swimlane}` |
 | Quote | `> Text — Attribution` (em dash or `--`) |
 | Reminder meeting | `## Name (Day, Day)` under `# Reminders` |
 | Reminder point | `- Text` under a meeting heading |
+| Goal section | `## Name` under `# Goals` |
+| Goal item | `- [ ] Text` or `- [x] Text` (dash, not asterisk) |
+| Goal radar link | `- [ ] Text {radar:Swimlane}` |
+| Goal target | `    Target: Text` (4 spaces indent) |
+| Goal due date | `    Due: M/D/YY` (4 spaces indent) |
+| Goal completion note | `    Completed Text` (4 spaces indent) |
+| Milestone | `    - [ ] Text (N%)` (4 spaces + dash + optional weight) |
+| Milestone due date | `        Due: M/D/YY` (8 spaces indent) |
+| Milestone completion note | `        Completed Text` (8 spaces indent) |
 
 ## Configuration
 
@@ -97,6 +121,7 @@ All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Add Swim Lane** / **Add Radar Item** / **Add Todo** / **Add Todo Section**
 - **Add Quote** / **Edit Quote** / **Delete Quote**
 - **Add Meeting** / **Add Talking Point**
+- **Add Goal** / **Add Goal Section** / **Add Milestone**
 - **Edit** / **Delete** / **Toggle Complete**
 
 ## Building from Source

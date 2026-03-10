@@ -179,25 +179,55 @@ body {
     padding: 4px;
 }
 
-/* ====== OPEN DASHBOARD BUTTON ====== */
-#open-dashboard-btn {
-    display: block;
-    width: 100%;
-    padding: 8px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--cyan);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    text-align: center;
-    transition: background 0.15s, border-color 0.15s;
+/* ====== GOAL PROGRESS ====== */
+#goals-section {
+    margin-top: 0;
 }
 
-#open-dashboard-btn:hover {
-    background: var(--vscode-list-hoverBackground);
-    border-color: var(--cyan-dim);
+/* Agenda dot shape variants */
+.agenda-dot.shape-goal {
+    border-radius: 0;
+    transform: rotate(45deg);
+    width: 7px;
+    height: 7px;
 }
+
+.agenda-dot.shape-milestone {
+    border-radius: 0;
+    width: 0;
+    height: 0;
+    background: none !important;
+    box-shadow: none !important;
+    border-left: 5px solid currentColor;
+    border-top: 3px solid transparent;
+    border-bottom: 3px solid transparent;
+}
+
+.agenda-dot.shape-milestone.urgent { color: var(--urgent); }
+.agenda-dot.shape-milestone.warning { color: var(--warning); }
+.agenda-dot.shape-milestone.normal { color: var(--cyan); }
+
+.agenda-dot.shape-todo {
+    border-radius: 0;
+    background: none !important;
+    box-shadow: none !important;
+    width: 8px;
+    height: 8px;
+    position: relative;
+}
+
+.agenda-dot.shape-todo::before {
+    content: '\2605';
+    position: absolute;
+    top: -3px;
+    left: -1px;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.agenda-dot.shape-todo.urgent::before { color: var(--urgent); }
+.agenda-dot.shape-todo.warning::before { color: var(--warning); }
+.agenda-dot.shape-todo.normal::before { color: var(--cyan); }
 
 /* Scrollbar */
 ::-webkit-scrollbar {

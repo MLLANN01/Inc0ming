@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
 import { DashboardPanel } from './dashboardPanel';
 import { daysUntil, formatDateMDYY, getUrgencyLevel } from '../utils/dateUtils';
+import { getNonce } from '../utils/nonce';
+import { getVirtualItemKind, VirtualItemKind } from '../utils/virtualItems';
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'inc0ming.statusView';
@@ -88,16 +90,23 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             };
         });
 
-        // Build agenda — radar items within warning window, sorted by date
-        const allItems = this._store.allRadarItems();
+        // Build agenda — radar items (including virtual goal/todo/milestone blips) within warning window
+        const augmented = this._store.computeAugmentedRadar();
+        const allItems: { date: Date; label: string; id: string }[] = [];
+        for (const sw of augmented.swimlanes) {
+            allItems.push(...sw.items);
+            for (const sg of sw.subGroups) { allItems.push(...sg.items); }
+        }
         const agenda = allItems
             .map(item => {
                 const days = daysUntil(item.date);
+                const itemKind: VirtualItemKind = getVirtualItemKind(item.id);
                 return {
                     label: item.label,
                     date: formatDateMDYY(item.date),
                     days,
                     urgency: getUrgencyLevel(days, warningDays, urgentDays),
+                    itemKind,
                 };
             })
             .filter(item => item.days >= 0 && item.days <= warningDays)
@@ -106,6 +115,19 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         // Overall todo stats
         const totalTodos = sections.reduce((sum, s) => sum + s.total, 0);
         const completedTodos = sections.reduce((sum, s) => sum + s.completed, 0);
+
+        // Build goal progress
+        const goalSections = this._store.goals.sections.map(s => {
+            const items = s.items;
+            const total = items.length;
+            const completed = items.filter(g => g.completed).length;
+            const progressSum = items.reduce((sum, g) => {
+                if (g.milestones.length === 0) { return sum + (g.completed ? 100 : 0); }
+                return sum + g.milestones.reduce((ms, m) => ms + (m.completed ? m.weight : 0), 0);
+            }, 0);
+            const avgProgress = total > 0 ? Math.round(progressSum / total) : 0;
+            return { name: s.name, total, completed, avgProgress };
+        });
 
         this._view.webview.postMessage({
             type: 'statusUpdate',
@@ -116,16 +138,13 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                 completedTodos,
                 totalRadar: allItems.length,
                 upcomingCount: agenda.length,
+                goalSections,
             },
         });
     }
 
-    private _handleMessage(msg: any): void {
-        switch (msg.type) {
-            case 'openDashboard':
-                vscode.commands.executeCommand('inc0ming.openDashboard');
-                break;
-        }
+    private _handleMessage(_msg: unknown): void {
+        // Reserved for future sidebar interactions
     }
 
     private _getHtml(webview: vscode.Webview): string {
@@ -152,19 +171,13 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             <div class="sidebar-section-title">Upcoming</div>
             <div id="agenda-list"></div>
         </div>
-        <button id="open-dashboard-btn">Open Dashboard</button>
+        <div id="goals-section">
+            <div class="sidebar-section-title">Goal Progress</div>
+            <div id="goals-status"></div>
+        </div>
     </div>
     <script nonce="${nonce}" src="${jsUri}"></script>
 </body>
 </html>`;
     }
-}
-
-function getNonce(): string {
-    let text = '';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return text;
 }

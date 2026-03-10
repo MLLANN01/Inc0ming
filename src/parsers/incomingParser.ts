@@ -3,6 +3,7 @@ import {
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
     ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
+    GoalData, GoalSection, GoalItem, GoalMilestone,
     ParseResult, ParseError, UnparsedLine,
     generateId, resetIdCounter,
 } from '../models/types';
@@ -23,6 +24,7 @@ export function parseIncoming(content: string): ParseResult {
         else if (trimmed === '# TODO') { sectionStarts.push({ name: 'todo', start: i }); }
         else if (trimmed === '# Quotes') { sectionStarts.push({ name: 'quotes', start: i }); }
         else if (trimmed === '# Reminders') { sectionStarts.push({ name: 'reminders', start: i }); }
+        else if (trimmed === '# Goals') { sectionStarts.push({ name: 'goals', start: i }); }
     }
 
     // Determine section ranges: each section runs from heading+1 to next heading (or EOF)
@@ -39,13 +41,15 @@ export function parseIncoming(content: string): ParseResult {
     const todoSection = getSectionLines('todo');
     const quotesSection = getSectionLines('quotes');
     const remindersSection = getSectionLines('reminders');
+    const goalsSection = getSectionLines('goals');
 
     const radar = parseRadarSection(radarSection.lines, radarSection.offset, errors, unparsedLines);
     const todo = parseTodoSection(todoSection.lines, todoSection.offset, errors);
     const quotes = parseQuotesSection(quotesSection.lines);
     const reminders = parseRemindersSection(remindersSection.lines);
+    const goals = parseGoalsSection(goalsSection.lines);
 
-    return { radar, todo, quotes, reminders, errors, unparsedLines };
+    return { radar, todo, quotes, reminders, goals, errors, unparsedLines };
 }
 
 function parseRadarSection(
@@ -184,15 +188,7 @@ function parseTodoSection(
 
     const sections: TodoSection[] = [];
 
-    // Default section for items before any ## heading
-    let currentSection: TodoSection = {
-        kind: 'todoSection',
-        id: generateId('ts'),
-        name: '',
-        items: [],
-    };
-    sections.push(currentSection);
-
+    let currentSection: TodoSection | null = null;
     let currentItem: TodoItem | null = null;
     let notesLines: string[] = [];
 
@@ -223,9 +219,9 @@ function parseTodoSection(
             continue;
         }
 
-        // * [ ] or * [x] todo item
+        // * [ ] or * [x] todo item — only if inside a ## section
         const todoMatch = trimmed.match(/^\* \[([ x])\] (.+)$/);
-        if (todoMatch) {
+        if (todoMatch && currentSection) {
             flushNotes();
             let text = todoMatch[2].trim();
             let radarLink: string | undefined;
@@ -243,10 +239,20 @@ function parseTodoSection(
                 text,
                 completed: todoMatch[1] === 'x',
                 notes: '',
+                dueDate: '',
                 radarLink,
             };
             currentSection.items.push(currentItem);
             continue;
+        }
+
+        // Due: line (4-space indent)
+        if (line.startsWith('    ') && currentItem) {
+            const trimmed4 = line.slice(4).trim();
+            if (trimmed4.startsWith('Due:')) {
+                currentItem.dueDate = trimmed4.slice('Due:'.length).trim();
+                continue;
+            }
         }
 
         // Indented note line: bullet (    - text) or paragraph (    text)
@@ -328,6 +334,140 @@ function parseRemindersSection(lines: string[]): ReminderData {
     }
 
     return { meetings };
+}
+
+function parseGoalsSection(lines: string[]): GoalData {
+    const sections: GoalSection[] = [];
+    let currentSection: GoalSection | null = null;
+    let currentGoal: GoalItem | null = null;
+    let currentMilestone: GoalMilestone | null = null;
+
+    function finalizeGoal() {
+        if (currentGoal) {
+            // Apply equal distribution for milestones with weight === 0
+            const unweighted = currentGoal.milestones.filter(m => m.weight === 0);
+            if (unweighted.length > 0 && currentGoal.milestones.every(m => m.weight === 0)) {
+                const each = Math.floor(100 / currentGoal.milestones.length);
+                const remainder = 100 - each * currentGoal.milestones.length;
+                currentGoal.milestones.forEach((m, i) => { m.weight = each + (i < remainder ? 1 : 0); });
+            }
+        }
+    }
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed === '# Goals') { continue; }
+
+        // ## Section heading
+        if (line.startsWith('## ')) {
+            finalizeGoal();
+            currentGoal = null;
+            currentMilestone = null;
+            currentSection = {
+                kind: 'goalSection',
+                id: generateId('gs'),
+                name: line.slice(3).trim(),
+                items: [],
+            };
+            sections.push(currentSection);
+            continue;
+        }
+
+        // Goal item: - [ ] or - [x] at start of line (no indent)
+        const goalMatch = trimmed.match(/^- \[([ x])\] (.+)$/);
+        if (goalMatch && !line.startsWith('    ') && currentSection) {
+            finalizeGoal();
+            currentMilestone = null;
+            let text = goalMatch[2].trim();
+            let radarLink: string | undefined;
+
+            // Extract {radar:name} cross-reference
+            const linkMatch = text.match(/\s*\{radar:([^}]+)\}\s*$/);
+            if (linkMatch) {
+                radarLink = linkMatch[1].trim();
+                text = text.slice(0, linkMatch.index).trim();
+            }
+
+            currentGoal = {
+                kind: 'goal',
+                id: generateId('gl'),
+                text,
+                completed: goalMatch[1] === 'x',
+                milestones: [],
+                completionNote: '',
+                dueDate: '',
+                radarLink,
+            };
+            currentSection.items.push(currentGoal);
+            continue;
+        }
+
+        // 8-space indent: milestone completion note or due date
+        if (line.startsWith('        ') && currentMilestone) {
+            const inner = line.slice(8).trim();
+            if (inner.startsWith('Completed')) {
+                currentMilestone.completionNote = inner.slice('Completed'.length).trimStart();
+                continue;
+            }
+            if (inner.startsWith('Due:')) {
+                currentMilestone.dueDate = inner.slice('Due:'.length).trim();
+                continue;
+            }
+        }
+
+        // 4-space indent lines (must check after 8-space)
+        if (line.startsWith('    ') && !line.startsWith('        ') && currentGoal) {
+            const inner4 = line.slice(4);
+
+            // Milestone: - [ ] text (N%) or - [x] text (N%)
+            const msMatch = inner4.match(/^- \[([ x])\] (.+)$/);
+            if (msMatch) {
+                currentMilestone = null;
+                let msText = msMatch[2].trim();
+                let weight = 0;
+
+                // Parse weight from (N%) at end
+                const weightMatch = msText.match(/\s*\((\d+)%\)\s*$/);
+                if (weightMatch) {
+                    weight = parseInt(weightMatch[1], 10);
+                    msText = msText.slice(0, weightMatch.index).trim();
+                }
+
+                const milestone: GoalMilestone = {
+                    kind: 'milestone',
+                    id: generateId('ms'),
+                    text: msText,
+                    completed: msMatch[1] === 'x',
+                    weight,
+                    completionNote: '',
+                    dueDate: '',
+                };
+                currentGoal.milestones.push(milestone);
+                currentMilestone = milestone;
+                continue;
+            }
+
+            const trimmed4 = inner4.trim();
+
+            // Goal completion note (4-space indent, starts with "Completed")
+            if (trimmed4.startsWith('Completed')) {
+                currentGoal.completionNote = trimmed4.slice('Completed'.length).trimStart();
+                currentMilestone = null;
+                continue;
+            }
+
+            // Goal due date (4-space indent, starts with "Due:")
+            if (trimmed4.startsWith('Due:')) {
+                currentGoal.dueDate = trimmed4.slice('Due:'.length).trim();
+                currentMilestone = null;
+                continue;
+            }
+        }
+    }
+
+    finalizeGoal();
+
+    return { sections };
 }
 
 function parseQuotesSection(lines: string[]): QuoteData {

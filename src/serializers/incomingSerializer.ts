@@ -1,4 +1,4 @@
-import { RadarData, TodoData, QuoteData, ReminderData, UnparsedLine } from '../models/types';
+import { RadarData, TodoData, QuoteData, ReminderData, GoalData, UnparsedLine } from '../models/types';
 import { formatDateMDYY } from '../utils/dateUtils';
 
 export function serializeIncoming(
@@ -7,6 +7,7 @@ export function serializeIncoming(
     unparsedLines: UnparsedLine[] = [],
     quotes: QuoteData = { items: [] },
     reminders: ReminderData = { meetings: [] },
+    goals: GoalData = { sections: [] },
 ): string {
     const parts: string[] = [];
 
@@ -79,13 +80,35 @@ export function serializeIncoming(
         parts.push('');
     }
 
+    // === Goals Section ===
+    if (goals.sections.length > 0) {
+        parts.push('# Goals');
+        parts.push('');
+        for (const section of goals.sections) {
+            parts.push(`## ${section.name}`);
+            for (const goal of section.items) {
+                const checkbox = goal.completed ? '[x]' : '[ ]';
+                let line = `- ${checkbox} ${goal.text}`;
+                if (goal.radarLink) { line += ` {radar:${goal.radarLink}}`; }
+                parts.push(line);
+                if (goal.completionNote) { parts.push(`    Completed ${goal.completionNote}`); }
+                if (goal.dueDate) { parts.push(`    Due: ${goal.dueDate}`); }
+                for (const ms of goal.milestones) {
+                    const msCheck = ms.completed ? '[x]' : '[ ]';
+                    parts.push(`    - ${msCheck} ${ms.text} (${ms.weight}%)`);
+                    if (ms.completionNote) { parts.push(`        Completed ${ms.completionNote}`); }
+                    if (ms.dueDate) { parts.push(`        Due: ${ms.dueDate}`); }
+                }
+            }
+            parts.push('');
+        }
+    }
+
     // === Todo Section ===
     parts.push('# TODO');
 
     for (const section of todo.sections) {
-        if (section.name) {
-            parts.push(`## ${section.name}`);
-        }
+        parts.push(`## ${section.name}`);
 
         for (const item of section.items) {
             const checkbox = item.completed ? '[x]' : '[ ]';
@@ -94,6 +117,10 @@ export function serializeIncoming(
                 line += ` {radar:${item.radarLink}}`;
             }
             parts.push(line);
+
+            if (item.dueDate) {
+                parts.push(`    Due: ${item.dueDate}`);
+            }
 
             if (item.notes) {
                 for (const line of item.notes.split('\n')) {

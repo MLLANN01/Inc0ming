@@ -6,18 +6,21 @@ import {
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
     ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
+    GoalData, GoalSection, GoalItem, GoalMilestone,
     ParseResult, ParseError, UnparsedLine,
     generateId,
 } from '../models/types';
 import { parseIncoming } from '../parsers/incomingParser';
 import { serializeIncoming } from '../serializers/incomingSerializer';
 import { parseDateMDYY } from '../utils/dateUtils';
+import { VIRT_GOAL_PREFIX, VIRT_MILESTONE_PREFIX, VIRT_TODO_PREFIX } from '../utils/virtualItems';
 
 export class DataStore implements vscode.Disposable {
     private _radar: RadarData = { swimlanes: [] };
     private _todo: TodoData = { sections: [] };
     private _quotes: QuoteData = { items: [] };
     private _reminders: ReminderData = { meetings: [] };
+    private _goals: GoalData = { sections: [] };
     private _errors: ParseError[] = [];
     private _unparsedLines: UnparsedLine[] = [];
     private _filePath: string;
@@ -25,6 +28,7 @@ export class DataStore implements vscode.Disposable {
     private _lastWriteTime = 0;
     private _watcher: vscode.FileSystemWatcher;
     private _diagnostics: vscode.DiagnosticCollection;
+    private _cachedAugmentedRadar: RadarData | null = null;
 
     private _onDidChange = new vscode.EventEmitter<void>();
     readonly onDidChange = this._onDidChange.event;
@@ -45,6 +49,7 @@ export class DataStore implements vscode.Disposable {
     get todo(): TodoData { return this._todo; }
     get quotes(): QuoteData { return this._quotes; }
     get reminders(): ReminderData { return this._reminders; }
+    get goals(): GoalData { return this._goals; }
     get errors(): ParseError[] { return this._errors; }
     get filePath(): string { return this._filePath; }
 
@@ -58,6 +63,71 @@ export class DataStore implements vscode.Disposable {
             }
         }
         return items;
+    }
+
+    /** Returns radar data augmented with virtual blips for goals/TODOs that have due dates. */
+    computeAugmentedRadar(): RadarData {
+        if (this._cachedAugmentedRadar) { return this._cachedAugmentedRadar; }
+
+        const swimlanes: RadarSwimlane[] = this._radar.swimlanes.map(s => ({
+            ...s,
+            items: [...s.items],
+            subGroups: s.subGroups.map(sg => ({ ...sg, items: [...sg.items] })),
+        }));
+
+        const laneMap = new Map<string, RadarSwimlane>();
+        for (const sw of swimlanes) {
+            laneMap.set(sw.name, sw);
+        }
+
+        function findOrCreateLane(name: string): RadarSwimlane {
+            let lane = laneMap.get(name);
+            if (!lane) {
+                lane = {
+                    kind: 'swimlane',
+                    id: 'virt_sw_' + name,
+                    name,
+                    items: [],
+                    subGroups: [],
+                };
+                laneMap.set(name, lane);
+                swimlanes.push(lane);
+            }
+            return lane;
+        }
+
+        for (const section of this._goals.sections) {
+            for (const goal of section.items) {
+                if (!goal.completed && goal.dueDate) {
+                    const date = parseDateMDYY(goal.dueDate);
+                    if (date) {
+                        const lane = findOrCreateLane(goal.radarLink || 'Goals');
+                        lane.items.push({ kind: 'radarItem', id: VIRT_GOAL_PREFIX + goal.id, date, label: goal.text });
+                    }
+                }
+                // Milestones with due dates
+                for (const ms of goal.milestones) {
+                    if (ms.completed || !ms.dueDate) { continue; }
+                    const msDate = parseDateMDYY(ms.dueDate);
+                    if (!msDate) { continue; }
+                    const msLane = findOrCreateLane(goal.radarLink || 'Goals');
+                    msLane.items.push({ kind: 'radarItem', id: VIRT_MILESTONE_PREFIX + ms.id, date: msDate, label: ms.text });
+                }
+            }
+        }
+
+        for (const section of this._todo.sections) {
+            for (const todo of section.items) {
+                if (todo.completed || !todo.dueDate) { continue; }
+                const date = parseDateMDYY(todo.dueDate);
+                if (!date) { continue; }
+                const lane = findOrCreateLane(todo.radarLink || 'TODOs');
+                lane.items.push({ kind: 'radarItem', id: VIRT_TODO_PREFIX + todo.id, date, label: todo.text });
+            }
+        }
+
+        this._cachedAugmentedRadar = { swimlanes };
+        return this._cachedAugmentedRadar;
     }
 
     findSwimlane(id: string): RadarSwimlane | undefined {
@@ -132,13 +202,6 @@ export class DataStore implements vscode.Disposable {
             reordered.push(sw);
         }
         this._radar.swimlanes = reordered;
-        return true;
-    }
-
-    setSwimlaneColor(id: string, color: string | undefined): boolean {
-        const sw = this.findSwimlane(id);
-        if (!sw) { return false; }
-        sw.color = color;
         return true;
     }
 
@@ -251,6 +314,7 @@ export class DataStore implements vscode.Disposable {
             text,
             completed: false,
             notes: '',
+            dueDate: '',
             radarLink,
         };
         section.items.push(item);
@@ -412,8 +476,206 @@ export class DataStore implements vscode.Disposable {
         return true;
     }
 
+    // --- Goal queries ---
+    findGoalSection(id: string): GoalSection | undefined {
+        return this._goals.sections.find(s => s.id === id);
+    }
+
+    findGoal(id: string): { goal: GoalItem; section: GoalSection } | undefined {
+        for (const section of this._goals.sections) {
+            const goal = section.items.find(g => g.id === id);
+            if (goal) { return { goal, section }; }
+        }
+        return undefined;
+    }
+
+    findMilestone(id: string): { milestone: GoalMilestone; goal: GoalItem } | undefined {
+        for (const section of this._goals.sections) {
+            for (const goal of section.items) {
+                const ms = goal.milestones.find(m => m.id === id);
+                if (ms) { return { milestone: ms, goal }; }
+            }
+        }
+        return undefined;
+    }
+
+    // --- Goal section mutations ---
+    addGoalSection(name: string): GoalSection {
+        const section: GoalSection = {
+            kind: 'goalSection',
+            id: generateId('gs'),
+            name,
+            items: [],
+        };
+        this._goals.sections.push(section);
+        return section;
+    }
+
+    renameGoalSection(id: string, name: string): boolean {
+        const section = this.findGoalSection(id);
+        if (!section) { return false; }
+        section.name = name;
+        return true;
+    }
+
+    deleteGoalSection(id: string): boolean {
+        const idx = this._goals.sections.findIndex(s => s.id === id);
+        if (idx < 0) { return false; }
+        this._goals.sections.splice(idx, 1);
+        return true;
+    }
+
+    // --- Goal item mutations ---
+    addGoal(sectionId: string, text: string): GoalItem | undefined {
+        const section = this.findGoalSection(sectionId);
+        if (!section) { return undefined; }
+        const goal: GoalItem = {
+            kind: 'goal',
+            id: generateId('gl'),
+            text,
+            completed: false,
+            milestones: [],
+            completionNote: '',
+            dueDate: '',
+        };
+        section.items.push(goal);
+        return goal;
+    }
+
+    editGoal(id: string, text: string): boolean {
+        const result = this.findGoal(id);
+        if (!result) { return false; }
+        result.goal.text = text;
+        return true;
+    }
+
+    deleteGoal(id: string): boolean {
+        for (const section of this._goals.sections) {
+            const idx = section.items.findIndex(g => g.id === id);
+            if (idx >= 0) { section.items.splice(idx, 1); return true; }
+        }
+        return false;
+    }
+
+    toggleGoal(id: string, completionNote: string): boolean {
+        const result = this.findGoal(id);
+        if (!result) { return false; }
+        result.goal.completed = !result.goal.completed;
+        if (result.goal.completed) {
+            result.goal.completionNote = completionNote;
+        } else {
+            result.goal.completionNote = '';
+        }
+        return true;
+    }
+
+    editGoalCompletionNote(id: string, completionNote: string): boolean {
+        const result = this.findGoal(id);
+        if (!result) { return false; }
+        result.goal.completionNote = completionNote;
+        return true;
+    }
+
+    editGoalDueDate(id: string, dueDate: string): boolean {
+        const result = this.findGoal(id);
+        if (!result) { return false; }
+        result.goal.dueDate = dueDate;
+        return true;
+    }
+
+    editMilestoneDueDate(id: string, dueDate: string): boolean {
+        const result = this.findMilestone(id);
+        if (!result) { return false; }
+        result.milestone.dueDate = dueDate;
+        return true;
+    }
+
+    editTodoDueDate(id: string, dueDate: string): boolean {
+        const item = this.findTodo(id);
+        if (!item) { return false; }
+        item.dueDate = dueDate;
+        return true;
+    }
+
+    editTodoRadarLink(id: string, radarLink: string): boolean {
+        const item = this.findTodo(id);
+        if (!item) { return false; }
+        item.radarLink = radarLink || undefined;
+        return true;
+    }
+
+    editGoalRadarLink(id: string, radarLink: string): boolean {
+        const result = this.findGoal(id);
+        if (!result) { return false; }
+        result.goal.radarLink = radarLink || undefined;
+        return true;
+    }
+
+    // --- Milestone mutations ---
+    private _rebalanceMilestones(goal: GoalItem): void {
+        const count = goal.milestones.length;
+        if (count === 0) { return; }
+        const base = Math.floor(100 / count);
+        const remainder = 100 - base * count;
+        for (let i = 0; i < count; i++) {
+            goal.milestones[i].weight = base + (i < remainder ? 1 : 0);
+        }
+    }
+
+    addMilestone(goalId: string, text: string, weight: number): GoalMilestone | undefined {
+        const result = this.findGoal(goalId);
+        if (!result) { return undefined; }
+        const ms: GoalMilestone = {
+            kind: 'milestone',
+            id: generateId('ms'),
+            text,
+            completed: false,
+            weight,
+            completionNote: '',
+            dueDate: '',
+        };
+        result.goal.milestones.push(ms);
+        this._rebalanceMilestones(result.goal);
+        return ms;
+    }
+
+    editMilestone(id: string, text: string, weight: number): boolean {
+        const result = this.findMilestone(id);
+        if (!result) { return false; }
+        result.milestone.text = text;
+        result.milestone.weight = weight;
+        return true;
+    }
+
+    deleteMilestone(id: string): boolean {
+        for (const section of this._goals.sections) {
+            for (const goal of section.items) {
+                const idx = goal.milestones.findIndex(m => m.id === id);
+                if (idx >= 0) {
+                    goal.milestones.splice(idx, 1);
+                    this._rebalanceMilestones(goal);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    toggleMilestone(id: string, completionNote: string): boolean {
+        const result = this.findMilestone(id);
+        if (!result) { return false; }
+        result.milestone.completed = !result.milestone.completed;
+        if (result.milestone.completed) {
+            result.milestone.completionNote = completionNote;
+        } else {
+            result.milestone.completionNote = '';
+        }
+        return true;
+    }
+
     // --- File I/O ---
     load(): void {
+        this._cachedAugmentedRadar = null;
         try {
             const content = fs.readFileSync(this._filePath, 'utf-8');
             const result = this._applyParse(content);
@@ -435,6 +697,7 @@ export class DataStore implements vscode.Disposable {
             this._todo = { sections: [] };
             this._quotes = { items: [] };
             this._reminders = { meetings: [] };
+            this._goals = { sections: [] };
             this._errors = [];
             this._unparsedLines = [];
         }
@@ -442,7 +705,8 @@ export class DataStore implements vscode.Disposable {
     }
 
     async save(): Promise<void> {
-        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders);
+        this._cachedAugmentedRadar = null;
+        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
         try {
@@ -460,11 +724,13 @@ export class DataStore implements vscode.Disposable {
     }
 
     private _applyParse(content: string): ParseResult {
+        this._cachedAugmentedRadar = null;
         const result = parseIncoming(content);
         this._radar = result.radar;
         this._todo = result.todo;
         this._quotes = result.quotes;
         this._reminders = result.reminders;
+        this._goals = result.goals;
         this._errors = result.errors;
         this._unparsedLines = result.unparsedLines;
         this._updateDiagnostics();

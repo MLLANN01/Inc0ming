@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* Dashboard main entry — message handling, swimlane cards, grid layout */
+/* Dashboard main entry — message handling, section reorder, drag-scroll */
 (function () {
     var vscode = acquireVsCodeApi();
     var currentRadarData = null;
@@ -13,14 +13,59 @@
         },
     };
 
+    // Convert YYYY-MM-DD (from <input type="date">) to M/D/YY
+    function dateInputToMDYY(isoStr) {
+        var parts = isoStr.split('-');
+        if (parts.length !== 3) { return isoStr; }
+        var m = parseInt(parts[1], 10);
+        var d = parseInt(parts[2], 10);
+        var yy = String(parseInt(parts[0], 10) % 100).padStart(2, '0');
+        return m + '/' + d + '/' + yy;
+    }
+
+    // Distribute allData payload to all renderers in correct order
+    function handleAllData(payload) {
+        currentRadarData = payload.radar;
+        window.RadarRenderer.setData(payload.radar);
+
+        if (payload.swimlaneNames) {
+            if (window.GoalsRenderer && window.GoalsRenderer.setSwimlanes) {
+                window.GoalsRenderer.setSwimlanes(payload.swimlaneNames);
+            }
+            if (window.TodoRenderer && window.TodoRenderer.setSwimlanes) {
+                window.TodoRenderer.setSwimlanes(payload.swimlaneNames);
+            }
+        }
+
+        window.QuoteRenderer.setData(payload.quotes);
+        window.ReminderRenderer.setData(payload.reminders);
+        window.GoalsRenderer.setData(payload.goals);
+
+        // Layout BEFORE todo so GridManager has correct state when render() calls applyLayout()
+        currentLayout = payload.layout || {};
+        if (window.GridManager) {
+            window.GridManager.init(currentLayout);
+        }
+        window.TodoRenderer.setData(payload.todo, currentLayout);
+
+        sweepEnabled = payload.radarVisible;
+        applySweepState();
+
+        if (payload.sectionOrder) {
+            applySectionOrder(payload.sectionOrder);
+        }
+    }
+
     // Listen for messages from extension
     window.addEventListener('message', function (event) {
         var msg = event.data;
         switch (msg.type) {
+            case 'allData':
+                handleAllData(msg.payload);
+                break;
             case 'radarUpdate':
                 currentRadarData = msg.data;
                 window.RadarRenderer.setData(msg.data);
-                renderSwimlaneCards(msg.data);
                 break;
             case 'todoUpdate':
                 window.TodoRenderer.setData(msg.data, currentLayout);
@@ -31,6 +76,9 @@
             case 'remindersUpdate':
                 window.ReminderRenderer.setData(msg.data);
                 break;
+            case 'goalsUpdate':
+                window.GoalsRenderer.setData(msg.data);
+                break;
             case 'layoutUpdate':
                 currentLayout = msg.layout || {};
                 if (window.GridManager) {
@@ -40,6 +88,17 @@
             case 'radarVisibleUpdate':
                 sweepEnabled = msg.visible;
                 applySweepState();
+                break;
+            case 'sectionOrderUpdate':
+                applySectionOrder(msg.order);
+                break;
+            case 'swimlaneNames':
+                if (window.GoalsRenderer && window.GoalsRenderer.setSwimlanes) {
+                    window.GoalsRenderer.setSwimlanes(msg.names);
+                }
+                if (window.TodoRenderer && window.TodoRenderer.setSwimlanes) {
+                    window.TodoRenderer.setSwimlanes(msg.names);
+                }
                 break;
         }
     });
@@ -69,551 +128,78 @@
     // Initialize radar canvas
     window.RadarRenderer.init();
 
-    // ====== SWIMLANE DETAIL CARDS ======
-    function daysBetween(a, b) {
-        var msDay = 86400000;
-        var d1 = new Date(a); d1.setHours(0,0,0,0);
-        var d2 = new Date(b); d2.setHours(0,0,0,0);
-        return Math.round((d2 - d1) / msDay);
-    }
+    // ====== RADAR FILTER BUTTONS ======
+    var filterButtons = document.querySelectorAll('.radar-filter');
+    var shapeFilters = { circle: true, diamond: true, flag: true, star: true };
 
-    function formatDate(dateStr) {
-        var d = new Date(dateStr);
-        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear() % 100).padStart(2, '0');
-    }
-
-    // Convert YYYY-MM-DD (from <input type="date">) to M/D/YY
-    function dateInputToMDYY(isoStr) {
-        var parts = isoStr.split('-');
-        if (parts.length !== 3) { return isoStr; }
-        var m = parseInt(parts[1], 10);
-        var d = parseInt(parts[2], 10);
-        var yy = String(parseInt(parts[0], 10) % 100).padStart(2, '0');
-        return m + '/' + d + '/' + yy;
-    }
-
-    // Convert ISO date string (or M/D/YY) to YYYY-MM-DD for <input type="date">
-    function toDateInputValue(dateStr) {
-        var d = new Date(dateStr);
-        if (isNaN(d.getTime())) { return ''; }
-        var yyyy = d.getFullYear();
-        var mm = String(d.getMonth() + 1).padStart(2, '0');
-        var dd = String(d.getDate()).padStart(2, '0');
-        return yyyy + '-' + mm + '-' + dd;
-    }
-
-    // Reusable radar date form (label + date picker + save/cancel)
-    function createRadarDateForm(opts) {
-        var form = document.createElement('div');
-        form.className = 'add-date-form' + (opts.visible ? '' : ' hidden');
-
-        var labelInput = document.createElement('input');
-        labelInput.type = 'text';
-        labelInput.placeholder = 'Label';
-        if (opts.label) { labelInput.value = opts.label; }
-
-        var dateInput = document.createElement('input');
-        dateInput.type = 'date';
-        if (opts.dateValue) { dateInput.value = opts.dateValue; }
-
-        var btns = document.createElement('div');
-        btns.className = 'form-buttons';
-
-        var saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Save';
-        saveBtn.addEventListener('click', function () {
-            var label = labelInput.value.trim();
-            var dateVal = dateInput.value;
-            if (label && dateVal) {
-                opts.onSave(label, dateInputToMDYY(dateVal));
-            }
-        });
-
-        var cancelBtn = document.createElement('button');
-        cancelBtn.className = 'cancel-btn';
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.addEventListener('click', function () {
-            if (opts.onCancel) { opts.onCancel(); }
-        });
-
-        function handleKeys(e) {
-            if (e.key === 'Enter') { saveBtn.click(); }
-            if (e.key === 'Escape') { cancelBtn.click(); }
-        }
-        labelInput.addEventListener('keydown', handleKeys);
-        dateInput.addEventListener('keydown', handleKeys);
-
-        btns.appendChild(saveBtn);
-        btns.appendChild(cancelBtn);
-        form.appendChild(labelInput);
-        form.appendChild(dateInput);
-        form.appendChild(btns);
-
-        return {
-            el: form,
-            labelInput: labelInput,
-            dateInput: dateInput,
-            show: function () { form.classList.remove('hidden'); },
-            hide: function () { form.classList.add('hidden'); },
-            reset: function () { labelInput.value = ''; dateInput.value = ''; },
-        };
-    }
-
-    function getDaysClass(days) {
-        if (days < 0) { return 'past'; }
-        if (days <= 30) { return 'urgent'; }
-        if (days <= 90) { return 'warning'; }
-        return 'normal';
-    }
-
-    function createItemRow(item) {
-        var days = daysBetween(new Date(), new Date(item.date));
-        var row = document.createElement('div');
-        row.className = 'swimlane-card-item';
-
-        var labelSpan = document.createElement('span');
-        labelSpan.className = 'item-label';
-        labelSpan.textContent = formatDate(item.date) + ' \u2013 ' + item.label;
-
-        // Double-click label to inline edit
-        labelSpan.addEventListener('dblclick', function () {
-            var editForm = createRadarDateForm({
-                visible: true,
-                label: item.label,
-                dateValue: toDateInputValue(item.date),
-                onSave: function (label, mdyy) {
-                    vscode.postMessage({ type: 'editRadarItem', id: item.id, label: label, dateStr: mdyy });
-                    editForm.el.replaceWith(row);
-                },
-                onCancel: function () {
-                    editForm.el.replaceWith(row);
-                },
-            });
-            row.replaceWith(editForm.el);
-            editForm.labelInput.focus();
-            editForm.labelInput.select();
-        });
-
-        var daysSpan = document.createElement('span');
-        daysSpan.className = 'days-away ' + getDaysClass(days);
-        if (days < 0) {
-            daysSpan.textContent = Math.abs(days) + 'd ago';
-        } else if (days === 0) {
-            daysSpan.textContent = 'today';
-        } else {
-            daysSpan.textContent = days + 'd away';
-        }
-
-        // Delete button
-        var delBtn = document.createElement('button');
-        delBtn.className = 'item-delete-btn';
-        delBtn.textContent = '\u00d7';
-        delBtn.title = 'Delete item';
-        delBtn.addEventListener('click', function () {
-            vscode.postMessage({
-                type: 'deleteRadarItem',
-                id: item.id,
-            });
-        });
-
-        row.appendChild(labelSpan);
-        row.appendChild(daysSpan);
-        row.appendChild(delBtn);
-        return row;
-    }
-
-    function renderSwimlaneCards(data) {
-        var container = document.getElementById('swimlane-cards');
-        if (!container || !data) { return; }
-
-        container.innerHTML = '';
-
-        for (var si = 0; si < data.swimlanes.length; si++) {
-            (function (swimlane) {
-                var card = document.createElement('div');
-                card.className = 'swimlane-card';
-
-                // Header
-                var header = document.createElement('div');
-                header.className = 'swimlane-card-header';
-
-                var titleEl = document.createElement('div');
-                titleEl.className = 'swimlane-card-title';
-                var chevron = document.createElement('span');
-                chevron.className = 'chevron open';
-                chevron.textContent = '\u25bc';
-                var nameSpan = document.createElement('span');
-                nameSpan.textContent = swimlane.name;
-
-                // Double-click name to rename swimlane
-                nameSpan.addEventListener('dblclick', function (e) {
-                    e.stopPropagation();
-                    var input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'inline-edit';
-                    input.value = swimlane.name;
-                    nameSpan.replaceWith(input);
-                    input.focus();
-                    input.select();
-
-                    function save() {
-                        var newName = input.value.trim();
-                        if (newName && newName !== swimlane.name) {
-                            vscode.postMessage({
-                                type: 'renameSwimlane',
-                                id: swimlane.id,
-                                name: newName,
-                            });
-                        }
-                        input.replaceWith(nameSpan);
-                        nameSpan.textContent = newName || swimlane.name;
-                    }
-
-                    input.addEventListener('blur', save);
-                    input.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter') { save(); }
-                        if (e.key === 'Escape') { input.replaceWith(nameSpan); }
-                    });
-                });
-
-                titleEl.appendChild(nameSpan);
-                titleEl.appendChild(chevron);
-
-                var closeBtn = document.createElement('button');
-                closeBtn.className = 'close-btn';
-                closeBtn.textContent = '\u00d7';
-                closeBtn.addEventListener('click', function () {
-                    vscode.postMessage({
-                        type: 'deleteSwimlane',
-                        id: swimlane.id,
-                    });
-                });
-
-                header.appendChild(titleEl);
-                header.appendChild(closeBtn);
-                card.appendChild(header);
-
-                // ---- Drag-to-reorder swimlane cards ----
-                header.draggable = true;
-                header.style.cursor = 'grab';
-
-                header.addEventListener('dragstart', function (e) {
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', swimlane.id);
-                    e.dataTransfer.setDragImage(card, 20, 20);
-                    setTimeout(function () { card.classList.add('dragging'); }, 0);
-                    container._draggedId = swimlane.id;
-                });
-
-                header.addEventListener('dragend', function () {
-                    card.classList.remove('dragging');
-                    var allCards = container.querySelectorAll('.swimlane-card');
-                    for (var ci = 0; ci < allCards.length; ci++) {
-                        allCards[ci].classList.remove('drag-over-left', 'drag-over-right');
-                    }
-                    container._draggedId = null;
-                });
-
-                card.addEventListener('dragover', function (e) {
-                    if (!container._draggedId || container._draggedId === swimlane.id) { return; }
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    var allCards = container.querySelectorAll('.swimlane-card');
-                    for (var ci = 0; ci < allCards.length; ci++) {
-                        allCards[ci].classList.remove('drag-over-left', 'drag-over-right');
-                    }
-                    var cardRect = card.getBoundingClientRect();
-                    var midX = cardRect.left + cardRect.width / 2;
-                    if (e.clientX < midX) {
-                        card.classList.add('drag-over-left');
-                    } else {
-                        card.classList.add('drag-over-right');
-                    }
-                });
-
-                card.addEventListener('dragleave', function () {
-                    card.classList.remove('drag-over-left', 'drag-over-right');
-                });
-
-                card.addEventListener('drop', function (e) {
-                    e.preventDefault();
-                    var draggedId = container._draggedId;
-                    if (!draggedId || draggedId === swimlane.id) { return; }
-                    var ids = currentRadarData.swimlanes.map(function (s) { return s.id; });
-                    var fromIndex = ids.indexOf(draggedId);
-                    if (fromIndex < 0) { return; }
-                    ids.splice(fromIndex, 1);
-                    var targetIndex = ids.indexOf(swimlane.id);
-                    var cardRect = card.getBoundingClientRect();
-                    var midX = cardRect.left + cardRect.width / 2;
-                    if (e.clientX >= midX) { targetIndex++; }
-                    ids.splice(targetIndex, 0, draggedId);
-                    vscode.postMessage({ type: 'reorderSwimlanes', orderedIds: ids });
-                    var allCards = container.querySelectorAll('.swimlane-card');
-                    for (var ci = 0; ci < allCards.length; ci++) {
-                        allCards[ci].classList.remove('drag-over-left', 'drag-over-right', 'dragging');
-                    }
-                    container._draggedId = null;
-                });
-
-                // Items container
-                var itemsContainer = document.createElement('div');
-                itemsContainer.className = 'swimlane-card-items';
-
-                // Direct items (sorted by date)
-                var sortedItems = swimlane.items.slice().sort(function (a, b) {
-                    return new Date(a.date) - new Date(b.date);
-                });
-                for (var ii = 0; ii < sortedItems.length; ii++) {
-                    itemsContainer.appendChild(createItemRow(sortedItems[ii]));
+    for (var fi = 0; fi < filterButtons.length; fi++) {
+        (function (btn) {
+            btn.addEventListener('click', function () {
+                var shape = btn.getAttribute('data-shape');
+                btn.classList.toggle('active');
+                shapeFilters[shape] = btn.classList.contains('active');
+                window.RadarRenderer.setFilters(shapeFilters);
+                if (currentRadarData) {
+                    window.RadarRenderer.setData(currentRadarData);
                 }
+            });
+        })(filterButtons[fi]);
+    }
 
-                // Sub-groups
-                for (var sgi = 0; sgi < swimlane.subGroups.length; sgi++) {
-                    (function (sg) {
-                        // Sub-group header with rename + delete
-                        var sgLabel = document.createElement('div');
-                        sgLabel.className = 'swimlane-card-item subgroup-header';
-
-                        var sgSpan = document.createElement('span');
-                        sgSpan.className = 'item-subgroup';
-                        sgSpan.textContent = sg.name;
-
-                        // Double-click to rename sub-group
-                        sgSpan.addEventListener('dblclick', function () {
-                            var input = document.createElement('input');
-                            input.type = 'text';
-                            input.className = 'inline-edit';
-                            input.value = sg.name;
-                            sgSpan.replaceWith(input);
-                            input.focus();
-                            input.select();
-
-                            function save() {
-                                var newName = input.value.trim();
-                                if (newName && newName !== sg.name) {
-                                    vscode.postMessage({
-                                        type: 'renameSubGroup',
-                                        id: sg.id,
-                                        name: newName,
-                                    });
-                                }
-                                input.replaceWith(sgSpan);
-                                sgSpan.textContent = newName || sg.name;
-                            }
-
-                            input.addEventListener('blur', save);
-                            input.addEventListener('keydown', function (e) {
-                                if (e.key === 'Enter') { save(); }
-                                if (e.key === 'Escape') { input.replaceWith(sgSpan); }
-                            });
-                        });
-
-                        // Delete sub-group button
-                        var sgDelBtn = document.createElement('button');
-                        sgDelBtn.className = 'item-delete-btn';
-                        sgDelBtn.textContent = '\u00d7';
-                        sgDelBtn.title = 'Delete section';
-                        sgDelBtn.addEventListener('click', function () {
-                            vscode.postMessage({
-                                type: 'deleteSubGroup',
-                                id: sg.id,
-                            });
-                        });
-
-                        sgLabel.appendChild(sgSpan);
-                        sgLabel.appendChild(sgDelBtn);
-                        itemsContainer.appendChild(sgLabel);
-
-                        // Sub-group items (sorted by date)
-                        var sortedSgItems = sg.items.slice().sort(function (a, b) {
-                            return new Date(a.date) - new Date(b.date);
-                        });
-                        for (var sgii = 0; sgii < sortedSgItems.length; sgii++) {
-                            itemsContainer.appendChild(createItemRow(sortedSgItems[sgii]));
-                        }
-
-                        // Add-date form for this sub-group
-                        var sgAddBtn; // forward ref
-                        var sgForm = createRadarDateForm({
-                            onSave: function (label, mdyy) {
-                                vscode.postMessage({ type: 'addRadarItem', parentId: sg.id, label: label, dateStr: mdyy });
-                                sgForm.reset(); sgForm.hide(); sgAddBtn.style.display = '';
-                            },
-                            onCancel: function () {
-                                sgForm.reset(); sgForm.hide(); sgAddBtn.style.display = '';
-                            },
-                        });
-                        itemsContainer.appendChild(sgForm.el);
-
-                        // "Add date..." button for this sub-group
-                        sgAddBtn = document.createElement('button');
-                        sgAddBtn.className = 'add-date-btn sg-add-date-btn';
-                        sgAddBtn.textContent = 'Add date...';
-                        sgAddBtn.addEventListener('click', function () {
-                            sgForm.show();
-                            sgAddBtn.style.display = 'none';
-                            sgForm.labelInput.focus();
-                        });
-                        itemsContainer.appendChild(sgAddBtn);
-                    })(swimlane.subGroups[sgi]);
+    // ====== HELPERS ======
+    function setupCollapsible(headerId, bodyId) {
+        var header = document.getElementById(headerId);
+        var body = document.getElementById(bodyId);
+        if (header && body) {
+            header.addEventListener('click', function (e) {
+                if (e.target.closest('.drag-grip')) { return; }
+                var chevron = header.querySelector('.collapse-chevron');
+                var collapsed = body.classList.toggle('collapsed');
+                if (chevron) {
+                    chevron.classList.toggle('open', !collapsed);
+                    chevron.classList.toggle('closed', collapsed);
                 }
-
-                card.appendChild(itemsContainer);
-
-                // Inline add-date form for the swimlane (hidden by default)
-                var addBtn; // forward ref
-                var addForm = createRadarDateForm({
-                    onSave: function (label, mdyy) {
-                        vscode.postMessage({ type: 'addRadarItem', parentId: swimlane.id, label: label, dateStr: mdyy });
-                        addForm.reset(); addForm.hide(); addBtn.style.display = '';
-                    },
-                    onCancel: function () {
-                        addForm.reset(); addForm.hide(); addBtn.style.display = '';
-                    },
-                });
-                card.appendChild(addForm.el);
-
-                // "Add date..." button toggles the form
-                addBtn = document.createElement('button');
-                addBtn.className = 'add-date-btn';
-                addBtn.textContent = 'Add date...';
-                addBtn.addEventListener('click', function () {
-                    addForm.show();
-                    addBtn.style.display = 'none';
-                    addForm.labelInput.focus();
-                });
-                card.appendChild(addBtn);
-
-                // "Add section..." button to create sub-groups
-                var addSgForm = document.createElement('div');
-                addSgForm.className = 'add-date-form hidden';
-
-                var sgNameInput = document.createElement('input');
-                sgNameInput.type = 'text';
-                sgNameInput.placeholder = 'Section name';
-
-                var sgFormBtns = document.createElement('div');
-                sgFormBtns.className = 'form-buttons';
-
-                var sgSaveBtn = document.createElement('button');
-                sgSaveBtn.textContent = 'Save';
-                sgSaveBtn.addEventListener('click', function () {
-                    var name = sgNameInput.value.trim();
-                    if (name) {
-                        vscode.postMessage({
-                            type: 'addSubGroup',
-                            swimlaneId: swimlane.id,
-                            name: name,
-                        });
-                        sgNameInput.value = '';
-                        addSgForm.classList.add('hidden');
-                        addSgBtn.style.display = '';
-                    }
-                });
-
-                var sgCancelBtn = document.createElement('button');
-                sgCancelBtn.className = 'cancel-btn';
-                sgCancelBtn.textContent = 'Cancel';
-                sgCancelBtn.addEventListener('click', function () {
-                    sgNameInput.value = '';
-                    addSgForm.classList.add('hidden');
-                    addSgBtn.style.display = '';
-                });
-
-                sgNameInput.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter') { sgSaveBtn.click(); }
-                    if (e.key === 'Escape') { sgCancelBtn.click(); }
-                });
-
-                sgFormBtns.appendChild(sgSaveBtn);
-                sgFormBtns.appendChild(sgCancelBtn);
-                addSgForm.appendChild(sgNameInput);
-                addSgForm.appendChild(sgFormBtns);
-
-                card.appendChild(addSgForm);
-
-                var addSgBtn = document.createElement('button');
-                addSgBtn.className = 'add-date-btn';
-                addSgBtn.textContent = 'Add section...';
-                addSgBtn.addEventListener('click', function () {
-                    addSgForm.classList.remove('hidden');
-                    addSgBtn.style.display = 'none';
-                    sgNameInput.focus();
-                });
-                card.appendChild(addSgBtn);
-
-                // Scroll indicator dot
-                var scrollDot = document.createElement('div');
-                scrollDot.className = 'card-scroll-indicator';
-                var dot = document.createElement('div');
-                dot.className = 'card-scroll-dot';
-                scrollDot.appendChild(dot);
-                card.appendChild(scrollDot);
-
-                container.appendChild(card);
-            })(data.swimlanes[si]);
+            });
         }
     }
 
-    // ====== NEW SWIMLANE INPUT + BUTTON ======
-    var newSwimInput = document.getElementById('new-swimlane-input');
-    var addSwimBtn = document.getElementById('add-swimlane-btn');
+    function setupSubmitInput(inputId, buttonId, messageType, fieldName) {
+        var input = document.getElementById(inputId);
+        var btn = document.getElementById(buttonId);
 
-    function submitSwimlane() {
-        if (!newSwimInput) { return; }
-        var name = newSwimInput.value.trim();
-        if (name) {
-            vscode.postMessage({ type: 'addSwimlane', name: name });
-            newSwimInput.value = '';
-        }
-    }
-
-    if (newSwimInput) {
-        newSwimInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { submitSwimlane(); }
-        });
-    }
-    if (addSwimBtn) {
-        addSwimBtn.addEventListener('click', submitSwimlane);
-    }
-
-    // ====== ADD TODO SECTION ======
-    var newSectionInput = document.getElementById('new-section-input');
-    var addSectionBtn = document.getElementById('add-section-btn');
-
-    function submitSection() {
-        if (!newSectionInput) { return; }
-        var name = newSectionInput.value.trim();
-        if (name) {
-            vscode.postMessage({ type: 'addTodoSection', name: name });
-            newSectionInput.value = '';
-        }
-    }
-
-    if (newSectionInput) {
-        newSectionInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { submitSection(); }
-        });
-    }
-    if (addSectionBtn) {
-        addSectionBtn.addEventListener('click', submitSection);
-    }
-
-    // ====== QUOTES MANAGEMENT ======
-    var quotesHeader = document.getElementById('quotes-header');
-    var quotesBody = document.getElementById('quotes-body');
-    if (quotesHeader && quotesBody) {
-        quotesHeader.addEventListener('click', function () {
-            var chevron = quotesHeader.querySelector('.collapse-chevron');
-            var collapsed = quotesBody.classList.toggle('collapsed');
-            if (chevron) {
-                chevron.classList.toggle('open', !collapsed);
-                chevron.classList.toggle('closed', collapsed);
+        function submit() {
+            if (!input) { return; }
+            var val = input.value.trim();
+            if (val) {
+                var msg = { type: messageType };
+                msg[fieldName] = val;
+                vscode.postMessage(msg);
+                input.value = '';
             }
-        });
+        }
+
+        if (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { submit(); }
+            });
+        }
+        if (btn) {
+            btn.addEventListener('click', submit);
+        }
     }
 
+    // ====== COLLAPSIBLE SECTIONS ======
+    setupCollapsible('quotes-header', 'quotes-body');
+    setupCollapsible('reminders-header', 'reminders-body');
+    setupCollapsible('goals-header', 'goals-body');
+    setupCollapsible('todo-header', 'todo-body');
+
+    // ====== SINGLE-INPUT SUBMIT PATTERNS ======
+    setupSubmitInput('new-swimlane-input', 'add-swimlane-btn', 'addSwimlane', 'name');
+    setupSubmitInput('new-section-input', 'add-section-btn', 'addTodoSection', 'name');
+    setupSubmitInput('new-goal-section-input', 'add-goal-section-btn', 'addGoalSection', 'name');
+
+    // ====== QUOTES — multi-input (kept manual) ======
     var newQuoteText = document.getElementById('new-quote-text');
     var newQuoteAttr = document.getElementById('new-quote-attr');
     var addQuoteBtn = document.getElementById('add-quote-btn');
@@ -647,20 +233,7 @@
         addQuoteBtn.addEventListener('click', submitQuote);
     }
 
-    // ====== REMINDERS COLLAPSE + ADD MEETING ======
-    var remindersHeader = document.getElementById('reminders-header');
-    var remindersBody = document.getElementById('reminders-body');
-    if (remindersHeader && remindersBody) {
-        remindersHeader.addEventListener('click', function () {
-            var chevron = remindersHeader.querySelector('.collapse-chevron');
-            var collapsed = remindersBody.classList.toggle('collapsed');
-            if (chevron) {
-                chevron.classList.toggle('open', !collapsed);
-                chevron.classList.toggle('closed', collapsed);
-            }
-        });
-    }
-
+    // ====== MEETINGS — multi-input (kept manual) ======
     var newMeetingName = document.getElementById('new-meeting-name');
     var newMeetingDays = document.getElementById('new-meeting-days');
     var addMeetingBtn = document.getElementById('add-meeting-btn');
@@ -694,34 +267,6 @@
         addMeetingBtn.addEventListener('click', submitMeeting);
     }
 
-    // ====== SWIM LANE DETAILS COLLAPSE ======
-    var slHeader = document.getElementById('swimlane-details-header');
-    var slBody = document.getElementById('swimlane-details-body');
-    if (slHeader && slBody) {
-        slHeader.addEventListener('click', function () {
-            var chevron = slHeader.querySelector('.collapse-chevron');
-            var collapsed = slBody.classList.toggle('collapsed');
-            if (chevron) {
-                chevron.classList.toggle('open', !collapsed);
-                chevron.classList.toggle('closed', collapsed);
-            }
-        });
-    }
-
-    // ====== TODO COLLAPSE ======
-    var todoHeader = document.getElementById('todo-header');
-    var todoBody = document.getElementById('todo-body');
-    if (todoHeader && todoBody) {
-        todoHeader.addEventListener('click', function () {
-            var chevron = todoHeader.querySelector('.collapse-chevron');
-            var collapsed = todoBody.classList.toggle('collapsed');
-            if (chevron) {
-                chevron.classList.toggle('open', !collapsed);
-                chevron.classList.toggle('closed', collapsed);
-            }
-        });
-    }
-
     // ====== RADAR EDIT POPOVER ======
     var editSave = document.getElementById('edit-save');
     var editCancel = document.getElementById('edit-cancel');
@@ -731,17 +276,158 @@
 
     if (editSave && editCancel && popover && editLabel && editDate) {
         editSave.addEventListener('click', function () {
-            vscode.postMessage({
-                type: 'editRadarItem',
-                id: popover._itemId,
-                label: editLabel.value,
-                dateStr: dateInputToMDYY(editDate.value),
-            });
+            if (popover._mode === 'add') {
+                vscode.postMessage({
+                    type: 'addRadarItem',
+                    parentId: popover._parentId,
+                    label: editLabel.value,
+                    dateStr: dateInputToMDYY(editDate.value),
+                });
+            } else {
+                vscode.postMessage({
+                    type: 'editRadarItem',
+                    id: popover._itemId,
+                    label: editLabel.value,
+                    dateStr: dateInputToMDYY(editDate.value),
+                });
+            }
             popover.classList.add('hidden');
         });
 
         editCancel.addEventListener('click', function () {
             popover.classList.add('hidden');
+        });
+    }
+
+    // ====== DRAG-SCROLL ON HORIZONTAL CONTAINERS ======
+    function initDragScroll(elementId) {
+        var el = document.getElementById(elementId);
+        if (!el) { return; }
+        var isDown = false;
+        var startX = 0;
+        var scrollStart = 0;
+        var moved = false;
+
+        el.addEventListener('mousedown', function (e) {
+            if (e.target.closest('button, input, [draggable="true"], .inline-edit')) { return; }
+            isDown = true;
+            moved = false;
+            startX = e.pageX;
+            scrollStart = el.scrollLeft;
+            el.classList.add('drag-scrolling');
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', function (e) {
+            if (!isDown) { return; }
+            var dx = e.pageX - startX;
+            if (Math.abs(dx) > 3) { moved = true; }
+            el.scrollLeft = scrollStart - dx;
+        });
+
+        window.addEventListener('mouseup', function () {
+            if (!isDown) { return; }
+            isDown = false;
+            el.classList.remove('drag-scrolling');
+        });
+
+        el.addEventListener('click', function (e) {
+            if (moved) { e.stopPropagation(); moved = false; }
+        }, true);
+    }
+
+    initDragScroll('reminders-grid');
+    initDragScroll('goals-grid');
+
+    // ====== SECTION DRAG-TO-REORDER ======
+    var sectionsContainer = document.getElementById('sections-container');
+
+    function applySectionOrder(order) {
+        if (!sectionsContainer || !order || !order.length) { return; }
+        for (var i = 0; i < order.length; i++) {
+            var child = sectionsContainer.querySelector('[data-section-key="' + order[i] + '"]');
+            if (child) {
+                sectionsContainer.appendChild(child);
+            }
+        }
+    }
+
+    function getSectionOrder() {
+        if (!sectionsContainer) { return []; }
+        var children = sectionsContainer.children;
+        var order = [];
+        for (var i = 0; i < children.length; i++) {
+            var key = children[i].getAttribute('data-section-key');
+            if (key) { order.push(key); }
+        }
+        return order;
+    }
+
+    if (sectionsContainer) {
+        var dragState = { active: false, el: null, ghost: null, placeholder: null, startY: 0, offsetY: 0 };
+
+        sectionsContainer.addEventListener('mousedown', function (e) {
+            var grip = e.target.closest('.drag-grip');
+            if (!grip) { return; }
+            var sectionEl = grip.closest('[data-section-key]');
+            if (!sectionEl) { return; }
+
+            e.preventDefault();
+            dragState.active = true;
+            dragState.el = sectionEl;
+            dragState.startY = e.clientY;
+            var rect = sectionEl.getBoundingClientRect();
+            dragState.offsetY = e.clientY - rect.top;
+
+            // Create ghost
+            var ghost = sectionEl.cloneNode(true);
+            ghost.className = 'section-drag-ghost';
+            ghost.style.width = rect.width + 'px';
+            ghost.style.height = rect.height + 'px';
+            ghost.style.left = rect.left + 'px';
+            ghost.style.top = (e.clientY - dragState.offsetY) + 'px';
+            document.body.appendChild(ghost);
+            dragState.ghost = ghost;
+
+            // Create placeholder
+            var placeholder = document.createElement('div');
+            placeholder.className = 'section-drop-placeholder';
+            sectionEl.parentNode.insertBefore(placeholder, sectionEl);
+            sectionEl.style.display = 'none';
+            dragState.placeholder = placeholder;
+        });
+
+        window.addEventListener('mousemove', function (e) {
+            if (!dragState.active) { return; }
+            dragState.ghost.style.top = (e.clientY - dragState.offsetY) + 'px';
+
+            // Find drop target
+            var children = sectionsContainer.children;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                if (child === dragState.placeholder || child === dragState.el) { continue; }
+                var rect = child.getBoundingClientRect();
+                var midY = rect.top + rect.height / 2;
+                if (e.clientY < midY) {
+                    sectionsContainer.insertBefore(dragState.placeholder, child);
+                    return;
+                }
+            }
+            // Past all children — append at end
+            sectionsContainer.appendChild(dragState.placeholder);
+        });
+
+        window.addEventListener('mouseup', function () {
+            if (!dragState.active) { return; }
+            // Insert the real element where the placeholder is
+            sectionsContainer.insertBefore(dragState.el, dragState.placeholder);
+            dragState.el.style.display = '';
+            dragState.placeholder.remove();
+            dragState.ghost.remove();
+            dragState.active = false;
+
+            // Save new order
+            vscode.postMessage({ type: 'saveSectionOrder', order: getSectionOrder() });
         });
     }
 })();

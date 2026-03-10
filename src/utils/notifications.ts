@@ -30,15 +30,4 @@ export class NotificationManager {
         }
     }
 
-    getUpcomingCount(store: DataStore): number {
-        const config = vscode.workspace.getConfiguration('inc0ming.notifications');
-        const warningDays = config.get<number>('warningDays', 7);
-
-        let count = 0;
-        for (const item of store.allRadarItems()) {
-            const days = daysUntil(item.date);
-            if (days >= 0 && days <= warningDays) { count++; }
-        }
-        return count;
-    }
 }
