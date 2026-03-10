@@ -242,7 +242,7 @@ export class DashboardPanel {
                 this._store.editGoalCompletionNote(msg.id, msg.completionNote);
                 break;
             case 'addMilestone':
-                this._store.addMilestone(msg.goalId, msg.text, msg.weight);
+                this._store.addMilestone(msg.goalId, msg.text, msg.weight, msg.dueDate);
                 break;
             case 'editMilestone':
                 this._store.editMilestone(msg.id, msg.text, msg.weight);

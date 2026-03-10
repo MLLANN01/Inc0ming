@@ -622,7 +622,7 @@ export class DataStore implements vscode.Disposable {
         }
     }
 
-    addMilestone(goalId: string, text: string, weight: number): GoalMilestone | undefined {
+    addMilestone(goalId: string, text: string, weight: number, dueDate?: string): GoalMilestone | undefined {
         const result = this.findGoal(goalId);
         if (!result) { return undefined; }
         const ms: GoalMilestone = {
@@ -632,7 +632,7 @@ export class DataStore implements vscode.Disposable {
             completed: false,
             weight,
             completionNote: '',
-            dueDate: '',
+            dueDate: dueDate || '',
         };
         result.goal.milestones.push(ms);
         this._rebalanceMilestones(result.goal);

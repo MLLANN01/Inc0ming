@@ -60,11 +60,17 @@
         ctx = canvas.getContext('2d');
         readThemeColors();
         resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        // Use ResizeObserver to detect VS Code pane resizing (not just window resize)
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+        } else {
+            window.addEventListener('resize', resizeCanvas);
+        }
         canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('mousedown', onMouseDown);
         canvas.addEventListener('mouseup', onMouseUp);
         canvas.addEventListener('click', onClick);
+        canvas.addEventListener('contextmenu', onContextMenu);
         canvas.addEventListener('mouseleave', onMouseLeave);
         sweepStartTime = performance.now();
         rAFId = requestAnimationFrame(animate);
@@ -93,6 +99,7 @@
 
     function resizeCanvas() {
         var rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width < 1) { return; } // Skip resize when container is collapsed/hidden
         var dpr = window.devicePixelRatio || 1;
         var h = computeCanvasHeight();
         canvas.width = rect.width * dpr;
@@ -445,29 +452,41 @@
             }
         }
 
+        // Collect ALL blips under the cursor
         hoveredBlip = null;
+        var hoveredBlips = [];
+        var hitRadius = BLIP_RADIUS + 6;
+        var hitRadiusSq = hitRadius * hitRadius;
         for (var i = 0; i < blips.length; i++) {
             var blip = blips[i];
             var dx = blip.x - mx;
             var dy = blip.y - my;
-            if (dx * dx + dy * dy < (BLIP_RADIUS + 6) * (BLIP_RADIUS + 6)) {
-                hoveredBlip = blip;
-                break;
+            if (dx * dx + dy * dy < hitRadiusSq) {
+                hoveredBlips.push(blip);
             }
         }
+        if (hoveredBlips.length > 0) { hoveredBlip = hoveredBlips[0]; }
 
         // Update cursor based on hover state
         canvas.style.cursor = hoveredBlip ? 'grab' : 'crosshair';
 
         var tooltip = document.getElementById('radar-tooltip');
-        if (hoveredBlip && tooltip) {
-            var hd = new Date(hoveredBlip.item.date);
-            var hDateStr = (hd.getMonth() + 1) + '/' + hd.getDate() + '/' + (hd.getFullYear() % 100);
-            var text = hoveredBlip.item.label + ' \u2014 ' + hDateStr + ' (' + hoveredBlip.days + 'd away)';
-            if (hoveredBlip.subGroup) {
-                text += ' [' + hoveredBlip.subGroup + ']';
+        if (hoveredBlips.length > 0 && tooltip) {
+            var lines = [];
+            for (var hi = 0; hi < hoveredBlips.length; hi++) {
+                var hb = hoveredBlips[hi];
+                var hd = new Date(hb.item.date);
+                var hDateStr = (hd.getMonth() + 1) + '/' + hd.getDate() + '/' + (hd.getFullYear() % 100);
+                var line = hb.item.label + ' \u2014 ' + hDateStr + ' (' + hb.days + 'd)';
+                if (hb.subGroup) { line += ' [' + hb.subGroup + ']'; }
+                lines.push(line);
             }
-            tooltip.textContent = text;
+            tooltip.innerHTML = '';
+            for (var li = 0; li < lines.length; li++) {
+                var lineEl = document.createElement('div');
+                lineEl.textContent = lines[li];
+                tooltip.appendChild(lineEl);
+            }
             tooltip.style.left = (e.clientX + 12) + 'px';
             tooltip.style.top = (e.clientY - 30) + 'px';
             tooltip.classList.remove('hidden');
@@ -660,6 +679,80 @@
         canvas.style.cursor = 'crosshair';
         var tooltip = document.getElementById('radar-tooltip');
         if (tooltip) { tooltip.classList.add('hidden'); }
+    }
+
+    function onContextMenu(e) {
+        if (!hoveredBlip) { return; }
+        e.preventDefault();
+
+        // Remove any existing context menu
+        var existing = document.getElementById('radar-context-menu');
+        if (existing) { existing.remove(); }
+
+        var isVirtual = hoveredBlip.item.id.startsWith('virt_');
+        var blipRef = hoveredBlip;
+
+        var menu = document.createElement('div');
+        menu.id = 'radar-context-menu';
+        menu.className = 'radar-context-menu';
+        menu.style.left = (e.clientX) + 'px';
+        menu.style.top = (e.clientY) + 'px';
+
+        if (!isVirtual) {
+            var editOption = document.createElement('div');
+            editOption.className = 'radar-context-option';
+            editOption.textContent = 'Edit';
+            editOption.addEventListener('click', function () {
+                menu.remove();
+                // Trigger the edit popover
+                var popover = document.getElementById('radar-edit-popover');
+                var labelInput = document.getElementById('edit-label');
+                var dateInput = document.getElementById('edit-date');
+                if (!popover || !labelInput || !dateInput) { return; }
+                popover._mode = 'edit';
+                popover._itemId = blipRef.item.id;
+                labelInput.value = blipRef.item.label;
+                var cd = new Date(blipRef.item.date);
+                dateInput.value = cd.getFullYear() + '-' + String(cd.getMonth() + 1).padStart(2, '0') + '-' + String(cd.getDate()).padStart(2, '0');
+                var rect = canvas.getBoundingClientRect();
+                popover.style.left = (blipRef.x + 12) + 'px';
+                popover.style.top = (blipRef.y - 40) + 'px';
+                popover.classList.remove('hidden');
+                labelInput.focus();
+            });
+            menu.appendChild(editOption);
+        }
+
+        var deleteOption = document.createElement('div');
+        deleteOption.className = 'radar-context-option delete';
+        deleteOption.textContent = 'Delete';
+        deleteOption.addEventListener('click', function () {
+            menu.remove();
+            var itemId = blipRef.item.id;
+            if (itemId.startsWith('virt_gl_')) {
+                window.DashboardBridge.postMessage({ type: 'deleteGoal', id: itemId.slice(8) });
+            } else if (itemId.startsWith('virt_td_')) {
+                window.DashboardBridge.postMessage({ type: 'deleteTodoItem', id: itemId.slice(8) });
+            } else if (itemId.startsWith('virt_ms_')) {
+                window.DashboardBridge.postMessage({ type: 'deleteMilestone', id: itemId.slice(8) });
+            } else {
+                window.DashboardBridge.postMessage({ type: 'deleteRadarItem', id: itemId });
+            }
+        });
+        menu.appendChild(deleteOption);
+
+        document.body.appendChild(menu);
+
+        // Close menu on click elsewhere
+        function closeMenu(ev) {
+            if (!menu.contains(ev.target)) {
+                menu.remove();
+                document.removeEventListener('mousedown', closeMenu, true);
+            }
+        }
+        setTimeout(function () {
+            document.addEventListener('mousedown', closeMenu, true);
+        }, 0);
     }
 
     window.RadarRenderer = { init: init, setData: setData, setSweepEnabled: setSweepEnabled, setFilters: setFilters };

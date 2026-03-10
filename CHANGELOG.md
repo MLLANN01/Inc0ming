@@ -1,17 +1,19 @@
 # Changelog
 
-## [0.3.0] - 2026-03-09
+## [0.4.0] - 2026-03-10
 
 ### Added
-- **Goals section** — longer-term aspirations with weighted milestones, progress tracking, due dates, completion notes, and radar cross-references (`# Goals`)
-- Goal sections, goal items (`- [ ]`/`- [x]`), milestones with optional `(N%)` weights, target notes, due dates, and completion notes
-- Goals progress bar calculated from completed milestone weights
-- **Todo due dates** — `Due: M/D/YY` line under todo items, with color-coded urgency badges on the dashboard
-- **Radar tree view** — hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons
-- Virtual radar blips for goals, milestones, and todos that have due dates or radar links — appear on the radar canvas as diamonds (goals), flags (milestones), and stars (todos)
-- Shared date and inline-edit utilities for webview renderers (`dateUtils.js`, `editUtils.js`)
-- Shared `getNonce()` utility (`src/utils/nonce.ts`)
-- Centralized virtual item type detection (`src/utils/virtualItems.ts`)
+- **Todo edit button** — pencil icon on hover for inline text editing (replaces double-click)
+- **Radar right-click context menu** — right-click any blip on the scanner canvas to edit or delete it, including virtual blips from goals/milestones/todos
+- **Stacked radar tooltip** — hovering over overlapping blips now shows all items at that position, not just one
+- Milestone due date input when adding milestones from the dashboard
+
+### Fixed
+- Radar tree view edit/delete commands now work — VS Code passes the tree element, not the TreeItem, to context menu commands
+- Virtual radar items no longer show edit/delete buttons in the tree view (they are managed via Goals/TODOs)
+- Radar canvas no longer disappears when resizing the editor pane — uses `ResizeObserver` instead of `window.resize`, with zero-width guard
+- Goals and reminders horizontal scroll position preserved across edits
+- Todo expand/collapse no longer conflicts with editing
 
 ### Improved
 - `computeAugmentedRadar()` result is now cached and invalidated on data changes, reducing redundant computation
@@ -25,6 +27,19 @@
 - Dead CSS selectors (`#ai-assist-container`, `.ai-idea-item`, `#add-todo-top-btn`)
 - Unused `setSwimlaneColor()` method from DataStore
 - Unused `getUpcomingCount()` method from notifications
+
+## [0.3.0] - 2026-03-09
+
+### Added
+- **Goals section** — longer-term aspirations with weighted milestones, progress tracking, due dates, completion notes, and radar cross-references (`# Goals`)
+- Goal sections, goal items (`- [ ]`/`- [x]`), milestones with optional `(N%)` weights, target notes, due dates, and completion notes
+- Goals progress bar calculated from completed milestone weights
+- **Todo due dates** — `Due: M/D/YY` line under todo items, with color-coded urgency badges on the dashboard
+- **Radar tree view** — hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons
+- Virtual radar blips for goals, milestones, and todos that have due dates or radar links — appear on the radar canvas as diamonds (goals), flags (milestones), and stars (todos)
+- Shared date and inline-edit utilities for webview renderers (`dateUtils.js`, `editUtils.js`)
+- Shared `getNonce()` utility (`src/utils/nonce.ts`)
+- Centralized virtual item type detection (`src/utils/virtualItems.ts`)
 
 ## [0.2.0] - 2026-03-08
 

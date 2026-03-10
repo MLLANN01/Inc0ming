@@ -49,6 +49,7 @@
         var grid = document.getElementById('goals-grid');
         if (!grid) { return; }
 
+        var savedScroll = grid.scrollLeft;
         grid.innerHTML = '';
 
         if (!data || !data.sections || data.sections.length === 0) { return; }
@@ -510,13 +511,20 @@
                         msWeightInput.min = '0';
                         msWeightInput.max = '100';
 
+                        var msDateInput = document.createElement('input');
+                        msDateInput.type = 'date';
+                        msDateInput.className = 'milestone-add-date';
+                        msDateInput.title = 'Due date (optional)';
+
                         function submitMilestone() {
                             var text = msAddInput.value.trim();
                             if (text) {
                                 var weight = parseInt(msWeightInput.value, 10) || 0;
-                                postMessage({ type: 'addMilestone', goalId: goal.id, text: text, weight: weight });
+                                var dueDate = msDateInput.value ? fromISODate(msDateInput.value) : '';
+                                postMessage({ type: 'addMilestone', goalId: goal.id, text: text, weight: weight, dueDate: dueDate });
                                 msAddInput.value = '';
                                 msWeightInput.value = '';
+                                msDateInput.value = '';
                             }
                         }
 
@@ -526,8 +534,12 @@
                         msWeightInput.addEventListener('keydown', function (e) {
                             if (e.key === 'Enter') { submitMilestone(); }
                         });
+                        msDateInput.addEventListener('keydown', function (e) {
+                            if (e.key === 'Enter') { submitMilestone(); }
+                        });
 
                         msAddRow.appendChild(msAddInput);
+                        msAddRow.appendChild(msDateInput);
                         msAddRow.appendChild(msWeightInput);
                         expanded.appendChild(msAddRow);
 
@@ -573,6 +585,8 @@
                 grid.appendChild(card);
             })(data.sections[si]);
         }
+
+        requestAnimationFrame(function () { grid.scrollLeft = savedScroll; });
     }
 
     function showCompletionPrompt(row, checkbox, onDone) {

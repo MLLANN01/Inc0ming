@@ -359,14 +359,20 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 /**
- * Resolve a VS Code TreeItem back to the actual data model element.
- * Tree items carry `.id` which maps to our generated IDs.
+ * Resolve a tree view argument to the actual data model element.
+ * VS Code passes the TreeDataProvider element (RadarTreeItem) for context menu commands,
+ * so we check for the element's `kind` property first, then fall back to ID-based lookup.
  */
 function resolveTreeElement(store: DataStore, treeItem: any): RadarSwimlane | RadarSubGroup | RadarItem | TodoItem | TodoSection | undefined {
+    // Handle RadarTreeItem elements (passed by tree view context menus)
+    if (treeItem.kind === 'swimlane' && treeItem.swimlane) { return treeItem.swimlane; }
+    if (treeItem.kind === 'subgroup' && treeItem.subGroup) { return treeItem.subGroup; }
+    if (treeItem.kind === 'radarItem' && treeItem.item) { return treeItem.item; }
+
+    // Fall back to ID-based lookup (for vscode.TreeItem objects)
     const id: string | undefined = treeItem.id;
     if (!id) { return undefined; }
 
-    // Check radar structures
     const sw = store.findSwimlane(id);
     if (sw) { return sw; }
 
@@ -376,11 +382,9 @@ function resolveTreeElement(store: DataStore, treeItem: any): RadarSwimlane | Ra
     const riResult = store.findRadarItem(id);
     if (riResult) { return riResult.item; }
 
-    // Check todo section
     const ts = store.findTodoSection(id);
     if (ts) { return ts; }
 
-    // Check todo item
     const todo = store.findTodo(id);
     if (todo) { return todo; }
 

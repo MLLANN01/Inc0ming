@@ -21,6 +21,7 @@
         var grid = document.getElementById('reminders-grid');
         if (!grid) { return; }
 
+        var savedScroll = grid.scrollLeft;
         grid.innerHTML = '';
 
         if (!data || !data.meetings || data.meetings.length === 0) { return; }
@@ -234,6 +235,8 @@
                 grid.appendChild(card);
             })(data.meetings[i]);
         }
+
+        requestAnimationFrame(function () { grid.scrollLeft = savedScroll; });
     }
 
     window.ReminderRenderer = { setData: setData };

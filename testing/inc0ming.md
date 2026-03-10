@@ -8,13 +8,13 @@
 
 ## Birthdays
 <!-- color: #ff6699 -->
-- 3/31/26 - Alex
 - 4/15/26 - Steven
 - 7/22/26 - Jordan
 - 8/23/26 - Priya
 - 11/10/26 - Marcus
 - 5/1/26 - Jonny
 - 5/2/26 - Susie
+- 3/26/26 - Alex
 
 ## Security Blocks
 ### Critical Vulnerabilities
@@ -114,9 +114,9 @@
     Due: 4/29/26
     - [x] Build 1 SaaS solution (34%)
         Due: 3/23/26
-    - [ ] Build second Saas solution (33%)
-        Due: 4/17/26
     - [ ] fghjkl (33%)
+    - [ ] Build second SaaS solution (33%)
+        Due: 4/14/26
 
 ## Personal
 - [ ] Read 6 books this year

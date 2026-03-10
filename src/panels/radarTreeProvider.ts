@@ -58,15 +58,16 @@ export class RadarTreeProvider implements vscode.TreeDataProvider<RadarTreeItem>
                 }
 
                 let iconName = 'circle-filled';
-                if (isVirtualGoal(ri.id)) { iconName = 'diamond'; }
-                else if (isVirtualMilestone(ri.id)) { iconName = 'milestone'; }
-                else if (isVirtualTodo(ri.id)) { iconName = 'star-empty'; }
+                let virtual = false;
+                if (isVirtualGoal(ri.id)) { iconName = 'diamond'; virtual = true; }
+                else if (isVirtualMilestone(ri.id)) { iconName = 'milestone'; virtual = true; }
+                else if (isVirtualTodo(ri.id)) { iconName = 'star-empty'; virtual = true; }
 
                 const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
                 item.id = ri.id;
                 item.description = description;
                 item.iconPath = new vscode.ThemeIcon(iconName, iconColor);
-                item.contextValue = 'radarItem';
+                item.contextValue = virtual ? 'virtualRadarItem' : 'radarItem';
                 return item;
             }
         }

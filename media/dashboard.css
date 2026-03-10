@@ -420,6 +420,34 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .tooltip.hidden { display: none; }
 
+/* Radar context menu */
+.radar-context-menu {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--cyan-dim);
+    border-radius: 4px;
+    padding: 4px 0;
+    z-index: 300;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    min-width: 100px;
+}
+
+.radar-context-option {
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.radar-context-option:hover {
+    background: var(--surface-light);
+    color: var(--text-bright);
+}
+
+.radar-context-option.delete:hover {
+    color: var(--urgent);
+}
+
 /* Edit popover */
 .popover {
     position: absolute;
@@ -833,6 +861,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     color: var(--text-dim);
 }
 
+.todo-item .todo-edit-btn,
 .todo-item .close-btn {
     background: none;
     border: none;
@@ -844,8 +873,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     transition: opacity 0.15s;
 }
 
+.todo-item:hover .todo-edit-btn,
 .todo-item:hover .close-btn {
     opacity: 1;
+}
+
+.todo-item .todo-edit-btn:hover {
+    color: var(--cyan);
 }
 
 .todo-item .close-btn:hover {
@@ -1644,6 +1678,22 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .milestone-add-weight::placeholder {
     color: var(--text-dim);
     font-style: italic;
+}
+
+.milestone-add-date {
+    width: 110px;
+    padding: 4px 6px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 11px;
+    color-scheme: dark;
+}
+
+.milestone-add-date:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
 }
 
 .goal-add-row {

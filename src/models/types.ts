@@ -227,7 +227,7 @@ export type WebviewMessage =
     | { type: 'deleteGoal'; id: string }
     | { type: 'toggleGoal'; id: string; completionNote: string }
     | { type: 'editGoalCompletionNote'; id: string; completionNote: string }
-    | { type: 'addMilestone'; goalId: string; text: string; weight: number }
+    | { type: 'addMilestone'; goalId: string; text: string; weight: number; dueDate?: string }
     | { type: 'editMilestone'; id: string; text: string; weight: number }
     | { type: 'deleteMilestone'; id: string }
     | { type: 'toggleMilestone'; id: string; completionNote: string }

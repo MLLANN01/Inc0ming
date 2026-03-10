@@ -269,56 +269,6 @@
                             }
                             render();
                         });
-
-                        // Double-click to inline edit
-                        textEl.addEventListener('dblclick', function (e) {
-                            e.stopPropagation();
-                            var input = document.createElement('input');
-                            input.type = 'text';
-                            input.className = 'inline-edit';
-                            input.value = item.text;
-                            textEl.replaceWith(input);
-                            input.focus();
-                            input.select();
-                            var textDone = false;
-
-                            function textCleanup() {
-                                document.removeEventListener('mousedown', onTextDocClick, true);
-                            }
-
-                            function save() {
-                                if (textDone) { return; }
-                                textDone = true;
-                                textCleanup();
-                                var newText = input.value.trim();
-                                if (newText && newText !== item.text) {
-                                    window.DashboardBridge.postMessage({
-                                        type: 'editTodoItem',
-                                        id: item.id,
-                                        text: newText,
-                                    });
-                                }
-                                input.replaceWith(textEl);
-                                textEl.textContent = newText || item.text;
-                            }
-
-                            function onTextDocClick(e2) {
-                                if (e2.target !== input) { save(); }
-                            }
-
-                            input.addEventListener('blur', save);
-                            input.addEventListener('keydown', function (e) {
-                                if (e.key === 'Enter') { save(); }
-                                if (e.key === 'Escape') {
-                                    if (textDone) { return; }
-                                    textDone = true;
-                                    textCleanup();
-                                    input.replaceWith(textEl);
-                                }
-                            });
-
-                            document.addEventListener('mousedown', onTextDocClick, true);
-                        });
                         row.appendChild(textEl);
 
                         // Due date badge
@@ -408,6 +358,61 @@
                             indicator.title = 'Has notes';
                             row.appendChild(indicator);
                         }
+
+                        // Edit button
+                        var itemEditBtn = document.createElement('button');
+                        itemEditBtn.className = 'todo-edit-btn';
+                        itemEditBtn.textContent = '\u270E';
+                        itemEditBtn.title = 'Edit todo';
+                        itemEditBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            var input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'inline-edit';
+                            input.value = item.text;
+                            textEl.replaceWith(input);
+                            input.focus();
+                            input.select();
+                            var textDone = false;
+
+                            function textCleanup() {
+                                document.removeEventListener('mousedown', onTextDocClick, true);
+                            }
+
+                            function save() {
+                                if (textDone) { return; }
+                                textDone = true;
+                                textCleanup();
+                                var newText = input.value.trim();
+                                if (newText && newText !== item.text) {
+                                    window.DashboardBridge.postMessage({
+                                        type: 'editTodoItem',
+                                        id: item.id,
+                                        text: newText,
+                                    });
+                                }
+                                input.replaceWith(textEl);
+                                textEl.textContent = newText || item.text;
+                            }
+
+                            function onTextDocClick(e2) {
+                                if (e2.target !== input) { save(); }
+                            }
+
+                            input.addEventListener('blur', save);
+                            input.addEventListener('keydown', function (ev) {
+                                if (ev.key === 'Enter') { save(); }
+                                if (ev.key === 'Escape') {
+                                    if (textDone) { return; }
+                                    textDone = true;
+                                    textCleanup();
+                                    input.replaceWith(textEl);
+                                }
+                            });
+
+                            document.addEventListener('mousedown', onTextDocClick, true);
+                        });
+                        row.appendChild(itemEditBtn);
 
                         // Delete button
                         var itemDelBtn = document.createElement('button');

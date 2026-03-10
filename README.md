@@ -6,14 +6,14 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 
 ## Features
 
-- **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days)
+- **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days). Right-click blips to edit or delete. Hover stacked blips to see all items.
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
 - **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
 - **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
-- **Radar Tree View** — Hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons
+- **Radar Tree View** — Hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons and inline edit/delete
 - **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
 
 ## Getting Started
