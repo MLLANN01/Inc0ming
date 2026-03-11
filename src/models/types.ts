@@ -305,5 +305,6 @@ export type WebviewMessage =
     | { type: 'editBookmark'; id: string; title: string; url: string }
     | { type: 'deleteBookmark'; id: string }
     | { type: 'openBookmark'; url: string }
-    | { type: 'copyBookmarkUrl'; url: string };
+    | { type: 'copyBookmarkUrl'; url: string }
+    | { type: 'moveBookmark'; id: string; targetSectionId: string; newIndex: number };
 

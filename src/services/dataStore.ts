@@ -917,6 +917,23 @@ export class DataStore implements vscode.Disposable {
         return false;
     }
 
+    moveBookmark(id: string, targetSectionId: string, newIndex: number): boolean {
+        let removed: BookmarkItem | undefined;
+        for (const section of this._bookmarks.sections) {
+            const idx = section.items.findIndex(b => b.id === id);
+            if (idx >= 0) {
+                removed = section.items.splice(idx, 1)[0];
+                break;
+            }
+        }
+        if (!removed) { return false; }
+        const target = this.findBookmarkSection(targetSectionId);
+        if (!target) { return false; }
+        const clampedIndex = Math.max(0, Math.min(newIndex, target.items.length));
+        target.items.splice(clampedIndex, 0, removed);
+        return true;
+    }
+
     // --- Contact queries ---
     findContactGroup(id: string): ContactGroup | undefined {
         return this._contacts.groups.find(g => g.id === id);

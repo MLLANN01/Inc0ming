@@ -148,8 +148,8 @@
 
 ## Dev Tools
 - [GitHub](https://github.com)
-- [VS Code Marketplace](https://marketplace.visualstudio.com)
 - [Stack Overflow](https://stackoverflow.com)
+- [VS Code Marketplace](https://marketplace.visualstudio.com)
 
 ## Documentation
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)

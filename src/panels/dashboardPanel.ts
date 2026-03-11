@@ -288,6 +288,9 @@ export class DashboardPanel {
             case 'deleteBookmark':
                 this._store.deleteBookmark(msg.id);
                 break;
+            case 'moveBookmark':
+                success = this._store.moveBookmark(msg.id, msg.targetSectionId, msg.newIndex);
+                break;
             case 'openBookmark':
                 vscode.env.openExternal(vscode.Uri.parse(msg.url));
                 return; // Read-only action, don't save

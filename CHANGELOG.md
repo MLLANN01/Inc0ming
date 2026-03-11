@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.1] - 2026-03-11
+
+### Added
+- **Bookmark drag-and-drop** — drag bookmark items between sections to reorganize, with drop indicator and visual feedback matching the TODO drag-and-drop pattern
+
 ## [0.6.0] - 2026-03-11
 
 ### Added

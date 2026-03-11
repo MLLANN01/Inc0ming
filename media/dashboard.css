@@ -896,7 +896,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 
 /* Drag-and-drop feedback */
-.todo-item.dragging {
+.todo-item.dragging,
+.bookmark-item.dragging {
     opacity: 0.4;
 }
 

@@ -3,6 +3,7 @@
 (function () {
     var bookmarkData = null;
     var searchTerm = '';
+    var draggedItemId = null;
 
     function postMessage(msg) {
         if (window.DashboardBridge) { window.DashboardBridge.postMessage(msg); }
@@ -129,12 +130,92 @@
                 var body = document.createElement('div');
                 body.className = 'widget-body';
 
+                // Drop zone handlers for the widget body
+                body.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    widget.classList.add('drag-over');
+
+                    var afterElement = getDragAfterElement(body, e.clientY);
+                    var indicator = body.querySelector('.drop-indicator');
+                    if (!indicator) {
+                        indicator = document.createElement('div');
+                        indicator.className = 'drop-indicator';
+                        body.appendChild(indicator);
+                    }
+                    if (afterElement) {
+                        body.insertBefore(indicator, afterElement);
+                    } else {
+                        body.appendChild(indicator);
+                    }
+                    indicator.style.display = 'block';
+                });
+
+                body.addEventListener('dragleave', function (e) {
+                    if (!body.contains(e.relatedTarget)) {
+                        widget.classList.remove('drag-over');
+                        var indicator = body.querySelector('.drop-indicator');
+                        if (indicator) { indicator.style.display = 'none'; }
+                    }
+                });
+
+                body.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    widget.classList.remove('drag-over');
+                    var indicator = body.querySelector('.drop-indicator');
+                    if (indicator) { indicator.style.display = 'none'; }
+
+                    var itemId = e.dataTransfer.getData('text/plain');
+                    if (!itemId) { return; }
+
+                    var afterElement = getDragAfterElement(body, e.clientY);
+                    var newIndex;
+                    if (afterElement) {
+                        var allItems = body.querySelectorAll('.bookmark-item');
+                        newIndex = 0;
+                        for (var ai = 0; ai < allItems.length; ai++) {
+                            if (allItems[ai] === afterElement) {
+                                newIndex = ai;
+                                break;
+                            }
+                        }
+                    } else {
+                        newIndex = section.items.length;
+                    }
+
+                    postMessage({
+                        type: 'moveBookmark',
+                        id: itemId,
+                        targetSectionId: section.id,
+                        newIndex: newIndex,
+                    });
+                });
+
                 for (var i = 0; i < filteredItems.length; i++) {
                     (function (item) {
                         var row = document.createElement('div');
                         row.className = 'bookmark-item';
                         row.dataset.itemId = item.id;
                         row.title = item.url;
+                        row.draggable = true;
+
+                        row.addEventListener('dragstart', function (e) {
+                            draggedItemId = item.id;
+                            e.dataTransfer.setData('text/plain', item.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setTimeout(function () { row.classList.add('dragging'); }, 0);
+                        });
+
+                        row.addEventListener('dragend', function () {
+                            row.classList.remove('dragging');
+                            draggedItemId = null;
+                            var allWidgets = document.querySelectorAll('#bookmarks-grid .grid-widget');
+                            for (var wi = 0; wi < allWidgets.length; wi++) {
+                                allWidgets[wi].classList.remove('drag-over');
+                                var ind = allWidgets[wi].querySelector('.drop-indicator');
+                                if (ind) { ind.style.display = 'none'; }
+                            }
+                        });
 
                         // Link icon
                         var icon = document.createElement('span');
@@ -322,6 +403,22 @@
                 grid.appendChild(widget);
             })(bookmarkData.sections[si]);
         }
+    }
+
+    function getDragAfterElement(container, y) {
+        var items = container.querySelectorAll('.bookmark-item:not(.dragging)');
+        var closest = null;
+        var closestOffset = Number.NEGATIVE_INFINITY;
+
+        for (var i = 0; i < items.length; i++) {
+            var box = items[i].getBoundingClientRect();
+            var offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closestOffset) {
+                closestOffset = offset;
+                closest = items[i];
+            }
+        }
+        return closest;
     }
 
     // Wire up search input
