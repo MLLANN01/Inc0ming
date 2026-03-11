@@ -12,7 +12,7 @@ import {
 } from '../models/types';
 import { parseIncoming } from '../parsers/incomingParser';
 import { serializeIncoming } from '../serializers/incomingSerializer';
-import { parseDateMDYY } from '../utils/dateUtils';
+import { parseDateMDYY, daysUntil, formatDateMDYY } from '../utils/dateUtils';
 import { VIRT_GOAL_PREFIX, VIRT_MILESTONE_PREFIX, VIRT_TODO_PREFIX } from '../utils/virtualItems';
 
 export class DataStore implements vscode.Disposable {
@@ -29,6 +29,8 @@ export class DataStore implements vscode.Disposable {
     private _watcher: vscode.FileSystemWatcher;
     private _diagnostics: vscode.DiagnosticCollection;
     private _cachedAugmentedRadar: RadarData | null = null;
+    private _cachedPastDue: any[] | null = null;
+    private _cachedArchive: any[] | null = null;
 
     private _onDidChange = new vscode.EventEmitter<void>();
     readonly onDidChange = this._onDidChange.event;
@@ -128,6 +130,171 @@ export class DataStore implements vscode.Disposable {
 
         this._cachedAugmentedRadar = { swimlanes };
         return this._cachedAugmentedRadar;
+    }
+
+    /** Returns overdue items sorted by most overdue first. */
+    computePastDue(): any[] {
+        if (this._cachedPastDue) { return this._cachedPastDue; }
+
+        const items: any[] = [];
+
+        // Overdue todos
+        for (const section of this._todo.sections) {
+            for (const todo of section.items) {
+                if (todo.completed || !todo.dueDate) { continue; }
+                const date = parseDateMDYY(todo.dueDate);
+                if (!date) { continue; }
+                const days = daysUntil(date);
+                if (days < 0) {
+                    items.push({
+                        id: todo.id,
+                        sourceType: 'todo',
+                        text: todo.text,
+                        dueDate: todo.dueDate,
+                        daysOverdue: Math.abs(days),
+                        sectionName: section.name,
+                        sourceId: section.id,
+                    });
+                }
+            }
+        }
+
+        // Overdue goals and milestones
+        for (const section of this._goals.sections) {
+            for (const goal of section.items) {
+                if (!goal.completed && goal.dueDate) {
+                    const date = parseDateMDYY(goal.dueDate);
+                    if (date) {
+                        const days = daysUntil(date);
+                        if (days < 0) {
+                            items.push({
+                                id: goal.id,
+                                sourceType: 'goal',
+                                text: goal.text,
+                                dueDate: goal.dueDate,
+                                daysOverdue: Math.abs(days),
+                                sectionName: section.name,
+                                sourceId: section.id,
+                            });
+                        }
+                    }
+                }
+                for (const ms of goal.milestones) {
+                    if (ms.completed || !ms.dueDate) { continue; }
+                    const msDate = parseDateMDYY(ms.dueDate);
+                    if (!msDate) { continue; }
+                    const days = daysUntil(msDate);
+                    if (days < 0) {
+                        items.push({
+                            id: ms.id,
+                            sourceType: 'milestone',
+                            text: ms.text,
+                            dueDate: ms.dueDate,
+                            daysOverdue: Math.abs(days),
+                            sectionName: section.name,
+                            sourceId: section.id,
+                            parentGoalId: goal.id,
+                            parentGoalText: goal.text,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Overdue radar items
+        for (const sw of this._radar.swimlanes) {
+            const addRadarItems = (radarItems: RadarItem[], laneName: string) => {
+                for (const ri of radarItems) {
+                    const days = daysUntil(ri.date);
+                    if (days < 0) {
+                        items.push({
+                            id: ri.id,
+                            sourceType: 'radar',
+                            text: ri.label,
+                            dueDate: formatDateMDYY(ri.date),
+                            daysOverdue: Math.abs(days),
+                            sectionName: laneName,
+                            sourceId: sw.id,
+                        });
+                    }
+                }
+            };
+            addRadarItems(sw.items, sw.name);
+            for (const sg of sw.subGroups) {
+                addRadarItems(sg.items, sw.name + ' / ' + sg.name);
+            }
+        }
+
+        // Sort by most overdue first
+        items.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+        this._cachedPastDue = items;
+        return items;
+    }
+
+    /** Returns accomplished items (completed todos, completed goals, past radar events). */
+    computeArchive(): any[] {
+        if (this._cachedArchive) { return this._cachedArchive; }
+
+        const items: any[] = [];
+
+        // Completed todos
+        for (const section of this._todo.sections) {
+            for (const todo of section.items) {
+                if (!todo.completed) { continue; }
+                items.push({
+                    id: todo.id,
+                    sourceType: 'todo',
+                    text: todo.text,
+                    dueDate: todo.dueDate || undefined,
+                    sectionName: section.name,
+                });
+            }
+        }
+
+        // Completed goals
+        for (const section of this._goals.sections) {
+            for (const goal of section.items) {
+                if (!goal.completed) { continue; }
+                const milestoneCount = goal.milestones.length;
+                const milestonesCompleted = goal.milestones.filter(m => m.completed).length;
+                items.push({
+                    id: goal.id,
+                    sourceType: 'goal',
+                    text: goal.text,
+                    completionNote: goal.completionNote || undefined,
+                    dueDate: goal.dueDate || undefined,
+                    sectionName: section.name,
+                    milestoneCount,
+                    milestonesCompleted,
+                });
+            }
+        }
+
+        // Past radar events
+        for (const sw of this._radar.swimlanes) {
+            const addPastRadar = (radarItems: RadarItem[], laneName: string) => {
+                for (const ri of radarItems) {
+                    const days = daysUntil(ri.date);
+                    if (days < 0) {
+                        items.push({
+                            id: ri.id,
+                            sourceType: 'radar',
+                            text: ri.label,
+                            dueDate: formatDateMDYY(ri.date),
+                            sectionName: laneName,
+                        });
+                    }
+                }
+            };
+            addPastRadar(sw.items, sw.name);
+            for (const sg of sw.subGroups) {
+                addPastRadar(sg.items, sw.name + ' / ' + sg.name);
+            }
+        }
+
+        this._cachedArchive = items;
+        return items;
     }
 
     findSwimlane(id: string): RadarSwimlane | undefined {
@@ -676,6 +843,8 @@ export class DataStore implements vscode.Disposable {
     // --- File I/O ---
     load(): void {
         this._cachedAugmentedRadar = null;
+        this._cachedPastDue = null;
+        this._cachedArchive = null;
         try {
             const content = fs.readFileSync(this._filePath, 'utf-8');
             const result = this._applyParse(content);
@@ -706,6 +875,8 @@ export class DataStore implements vscode.Disposable {
 
     async save(): Promise<void> {
         this._cachedAugmentedRadar = null;
+        this._cachedPastDue = null;
+        this._cachedArchive = null;
         const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
@@ -725,6 +896,8 @@ export class DataStore implements vscode.Disposable {
 
     private _applyParse(content: string): ParseResult {
         this._cachedAugmentedRadar = null;
+        this._cachedPastDue = null;
+        this._cachedArchive = null;
         const result = parseIncoming(content);
         this._radar = result.radar;
         this._todo = result.todo;

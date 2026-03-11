@@ -616,8 +616,22 @@
         var my = e.clientY - rect.top;
 
         if (hoveredBlip) {
-            // Skip edit popover for virtual blips (managed via Goals/TODOs UI)
-            if (hoveredBlip.item.id.startsWith('virt_')) { return; }
+            // Virtual blips → navigate to the item in the dashboard
+            if (hoveredBlip.item.id.startsWith('virt_')) {
+                var itemId = hoveredBlip.item.id;
+                if (itemId.startsWith('virt_gl_') || itemId.startsWith('virt_ms_')) {
+                    if (window.DashboardBridge.expandSection) { window.DashboardBridge.expandSection('goals'); }
+                    if (window.GoalsRenderer && window.GoalsRenderer.highlightItem) {
+                        window.GoalsRenderer.highlightItem(itemId.slice(8), itemId.startsWith('virt_ms_'));
+                    }
+                } else if (itemId.startsWith('virt_td_')) {
+                    if (window.DashboardBridge.expandSection) { window.DashboardBridge.expandSection('todo'); }
+                    if (window.TodoRenderer && window.TodoRenderer.highlightItem) {
+                        window.TodoRenderer.highlightItem(itemId.slice(8));
+                    }
+                }
+                return;
+            }
             // Edit existing item
             popover._mode = 'edit';
             popover._itemId = hoveredBlip.item.id;

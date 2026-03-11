@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0] - 2026-03-10
+
+### Added
+- **Past Due section in sidebar** — overdue todos, goals, milestones, and radar items listed with type badges, urgency dots, and days-overdue counts; clickable to navigate to the item in the dashboard
+- **Archive section in dashboard** — completed todos, completed goals (with completion notes and milestone summaries), and past radar events grouped by type; collapsible, drag-to-reorder with other sections; items can be deleted inline
+- **Cross-view navigation** — clicking sidebar items (past due and upcoming) opens the dashboard and scrolls to the relevant item with a highlight pulse animation
+- **Radar blip click-to-navigate** — clicking virtual blips (goals, milestones, todos) on the scanner canvas navigates to and highlights the source item in its section
+- `computePastDue()` and `computeArchive()` cached computed views on DataStore
+- `highlightItem()` on GoalsRenderer (supports both goals and milestones, auto-expands collapsed goal details) and TodoRenderer (auto-expands notes)
+- `expandSection()` helper on DashboardBridge for programmatic section uncollapse
+- `navigateTo()` public method on DashboardPanel for cross-webview navigation
+- `data-goal-id` / `data-milestone-id` data attributes on goal and milestone DOM elements for targeted navigation
+
+### Improved
+- Sidebar agenda items are now clickable (navigate to dashboard) with pointer cursor
+- Sidebar past-due and agenda items pass `sourceType` through the navigation chain for accurate goal vs milestone handling
+
 ## [0.4.0] - 2026-03-10
 
 ### Added

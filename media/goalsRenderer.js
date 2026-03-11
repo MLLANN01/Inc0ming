@@ -102,6 +102,7 @@
                     (function (goal) {
                         var goalContainer = document.createElement('div');
                         goalContainer.className = 'goal-item-container';
+                        goalContainer.dataset.goalId = goal.id;
 
                         // Main goal row
                         var goalRow = document.createElement('div');
@@ -325,6 +326,7 @@
                             (function (ms) {
                                 var msRow = document.createElement('div');
                                 msRow.className = 'milestone-item' + (ms.completed ? ' completed' : '');
+                                msRow.dataset.milestoneId = ms.id;
 
                                 var msCheck = document.createElement('input');
                                 msCheck.type = 'checkbox';
@@ -654,5 +656,44 @@
         input.focus();
     }
 
-    window.GoalsRenderer = { setData: setData, setSwimlanes: setSwimlanes };
+    function highlightItem(id, isMilestone) {
+        var grid = document.getElementById('goals-grid');
+        if (!grid) { return; }
+
+        var target = null;
+        var goalContainer = null;
+
+        if (isMilestone) {
+            target = grid.querySelector('[data-milestone-id="' + id + '"]');
+            if (target) { goalContainer = target.closest('.goal-item-container'); }
+        } else {
+            goalContainer = grid.querySelector('[data-goal-id="' + id + '"]');
+            if (goalContainer) { target = goalContainer.querySelector('.goal-item'); }
+        }
+
+        if (!goalContainer) { return; }
+
+        // Expand the goal's detail section if collapsed
+        var expanded = goalContainer.querySelector('.goal-expanded');
+        if (expanded && expanded.classList.contains('collapsed')) {
+            expanded.classList.remove('collapsed');
+            var goalId = goalContainer.dataset.goalId;
+            if (goalId) { expandedGoalIds[goalId] = true; }
+        }
+
+        // Scroll the card into view in the horizontal grid
+        var card = goalContainer.closest('.goal-card');
+        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); }
+
+        // Scroll the target element into view vertically
+        requestAnimationFrame(function () {
+            if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            // Apply highlight animation
+            var el = target || goalContainer;
+            el.classList.add('navigate-highlight');
+            setTimeout(function () { el.classList.remove('navigate-highlight'); }, 1500);
+        });
+    }
+
+    window.GoalsRenderer = { setData: setData, setSwimlanes: setSwimlanes, highlightItem: highlightItem };
 })();

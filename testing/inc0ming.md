@@ -147,7 +147,7 @@
 # TODO
 ## Inc0ming
 * [ ] Pro Site Update
-    Due: 3/10/26
+    Due: 3/8/26
 * [x] Edit TODO and Radar Items and SubSections
 * [x] Order by Date Radar Items
 * [x] Create a reminders section
@@ -173,7 +173,6 @@
     - Research destinations
     - Book flights
     - Reserve hotel
-* [x] Reviews
 * [ ] Schedule annual physical
 ## Follow up
 * [x] POC for new app {radar:hrijfskedl}

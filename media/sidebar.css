@@ -229,6 +229,35 @@ body {
 .agenda-dot.shape-todo.warning::before { color: var(--warning); }
 .agenda-dot.shape-todo.normal::before { color: var(--cyan); }
 
+/* ====== PAST DUE ====== */
+.pastdue-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.1s;
+}
+
+.pastdue-sidebar-item:hover {
+    background: var(--surface);
+}
+
+.pastdue-sidebar-type {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--urgent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+/* ====== CLICKABLE ITEMS ====== */
+.sidebar-clickable {
+    cursor: pointer;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 4px;

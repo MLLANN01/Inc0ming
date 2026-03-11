@@ -11,6 +11,20 @@
         postMessage: function (msg) {
             vscode.postMessage(msg);
         },
+        expandSection: function (sectionKey) {
+            var bodyId = sectionKey + '-body';
+            var headerId = sectionKey + '-header';
+            var body = document.getElementById(bodyId);
+            var header = document.getElementById(headerId);
+            if (body && body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                var chevron = header ? header.querySelector('.collapse-chevron') : null;
+                if (chevron) {
+                    chevron.classList.add('open');
+                    chevron.classList.remove('closed');
+                }
+            }
+        },
     };
 
     // Convert YYYY-MM-DD (from <input type="date">) to M/D/YY
@@ -47,6 +61,10 @@
             window.GridManager.init(currentLayout);
         }
         window.TodoRenderer.setData(payload.todo, currentLayout);
+
+        if (window.ArchiveRenderer && payload.archive) {
+            window.ArchiveRenderer.setData(payload.archive);
+        }
 
         sweepEnabled = payload.radarVisible;
         applySweepState();
@@ -100,6 +118,9 @@
                     window.TodoRenderer.setSwimlanes(msg.names);
                 }
                 break;
+            case 'navigateTo':
+                handleNavigateTo(msg.sectionKey, msg.itemId, msg.sourceType);
+                break;
         }
     });
 
@@ -111,6 +132,39 @@
                 toggleBtn.classList.add('active');
             } else {
                 toggleBtn.classList.remove('active');
+            }
+        }
+    }
+
+    function handleNavigateTo(sectionKey, itemId, sourceType) {
+        // Expand the section if it's collapsed
+        if (sectionKey) {
+            window.DashboardBridge.expandSection(sectionKey);
+        }
+        // Scroll to and highlight the item if an ID is given
+        if (itemId) {
+            // Small delay to allow section expand animation
+            setTimeout(function () {
+                // Goals/milestones use their own data attributes — delegate to GoalsRenderer
+                if (sectionKey === 'goals' && window.GoalsRenderer && window.GoalsRenderer.highlightItem) {
+                    var isMilestone = sourceType === 'milestone';
+                    window.GoalsRenderer.highlightItem(itemId, isMilestone);
+                    return;
+                }
+                var targetEl = document.querySelector('[data-item-id="' + itemId + '"]');
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetEl.classList.add('navigate-highlight');
+                    setTimeout(function () {
+                        targetEl.classList.remove('navigate-highlight');
+                    }, 1500);
+                }
+            }, 100);
+        } else if (sectionKey) {
+            // No specific item — scroll to the section header
+            var header = document.getElementById(sectionKey + '-header');
+            if (header) {
+                header.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
     }
@@ -193,6 +247,7 @@
     setupCollapsible('reminders-header', 'reminders-body');
     setupCollapsible('goals-header', 'goals-body');
     setupCollapsible('todo-header', 'todo-body');
+    setupCollapsible('archive-header', 'archive-body');
 
     // ====== SINGLE-INPUT SUBMIT PATTERNS ======
     setupSubmitInput('new-swimlane-input', 'add-swimlane-btn', 'addSwimlane', 'name');

@@ -3,7 +3,7 @@ import { DataStore } from '../services/dataStore';
 import { DashboardPanel } from './dashboardPanel';
 import { daysUntil, formatDateMDYY, getUrgencyLevel } from '../utils/dateUtils';
 import { getNonce } from '../utils/nonce';
-import { getVirtualItemKind, VirtualItemKind } from '../utils/virtualItems';
+import { getVirtualItemKind, stripVirtualPrefix, VirtualItemKind } from '../utils/virtualItems';
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'inc0ming.statusView';
@@ -107,6 +107,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     days,
                     urgency: getUrgencyLevel(days, warningDays, urgentDays),
                     itemKind,
+                    sourceId: stripVirtualPrefix(item.id),
                 };
             })
             .filter(item => item.days >= 0 && item.days <= warningDays)
@@ -139,12 +140,20 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                 totalRadar: allItems.length,
                 upcomingCount: agenda.length,
                 goalSections,
+                pastDue: this._store.computePastDue(),
             },
         });
     }
 
-    private _handleMessage(_msg: unknown): void {
-        // Reserved for future sidebar interactions
+    private _handleMessage(msg: any): void {
+        if (msg.type === 'navigateTo') {
+            // Ensure dashboard is open, then forward navigation
+            vscode.commands.executeCommand('inc0ming.openDashboard').then(() => {
+                setTimeout(() => {
+                    DashboardPanel.currentPanel?.navigateTo(msg.sectionKey, msg.itemId, msg.sourceType);
+                }, 200);
+            });
+        }
     }
 
     private _getHtml(webview: vscode.Webview): string {
@@ -166,6 +175,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         <div id="status-section">
             <div class="sidebar-section-title">Todo Progress</div>
             <div id="todo-status"></div>
+        </div>
+        <div id="pastdue-section">
+            <div class="sidebar-section-title">Past Due</div>
+            <div id="pastdue-status"></div>
         </div>
         <div id="agenda-section">
             <div class="sidebar-section-title">Upcoming</div>

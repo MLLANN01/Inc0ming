@@ -83,6 +83,7 @@ export class DashboardPanel {
                 radarVisible,
                 sectionOrder,
                 parseErrors,
+                archive: this._store.computeArchive(),
             },
         });
     }
@@ -287,6 +288,7 @@ export class DashboardPanel {
         const gridJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'gridManager.js'));
         const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
         const goalsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'goalsRenderer.js'));
+        const archiveJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'archiveRenderer.js'));
         const dateUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'dateUtils.js'));
         const editUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'editUtils.js'));
 
@@ -408,6 +410,16 @@ export class DashboardPanel {
                 </div>
             </div>
         </div>
+
+        <div id="archive-container" data-section-key="archive">
+            <div class="section-header collapsible" id="archive-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron closed">\u25bc</span> Archive <span id="archive-count" class="section-count-badge" style="display:none">0</span>
+            </div>
+            <div id="archive-body" class="collapsed">
+                <div id="archive-list"></div>
+            </div>
+        </div>
     </div>
 
     <script nonce="${nonce}" src="${dateUtilsJsUri}"></script>
@@ -417,10 +429,21 @@ export class DashboardPanel {
     <script nonce="${nonce}" src="${quoteJsUri}"></script>
     <script nonce="${nonce}" src="${reminderJsUri}"></script>
     <script nonce="${nonce}" src="${goalsJsUri}"></script>
+    <script nonce="${nonce}" src="${archiveJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>
 </html>`;
+    }
+
+    public navigateTo(sectionKey: string, itemId?: string, sourceType?: string): void {
+        this._panel.reveal();
+        this._panel.webview.postMessage({
+            type: 'navigateTo',
+            sectionKey,
+            itemId,
+            sourceType,
+        });
     }
 
     dispose() {

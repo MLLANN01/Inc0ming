@@ -14,6 +14,9 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 - **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
 - **Radar Tree View** — Hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons and inline edit/delete
+- **Past Due (Sidebar)** — Overdue todos, goals, milestones, and radar items listed in the sidebar with type badges and days-overdue counts. Click any item to navigate to it in the dashboard.
+- **Archive** — Collapsible dashboard section showing completed todos, completed goals (with completion notes and milestone summaries), and past radar events. Items can be deleted inline.
+- **Cross-View Navigation** — Click sidebar items, past-due entries, or virtual radar blips to jump directly to the source item in the dashboard with a highlight animation
 - **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
 
 ## Getting Started

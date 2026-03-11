@@ -698,5 +698,32 @@
         return closest;
     }
 
-    window.TodoRenderer = { setData: setData, setSwimlanes: setSwimlanes };
+    function highlightItem(id) {
+        var container = document.getElementById('todo-grid');
+        if (!container) { return; }
+
+        var row = container.querySelector('[data-item-id="' + id + '"]');
+        if (!row) { return; }
+
+        // Expand the item's notes
+        if (expandedItemId !== id) {
+            expandedItemId = id;
+            render();
+            // Re-query after render since DOM was rebuilt
+            row = container.querySelector('[data-item-id="' + id + '"]');
+            if (!row) { return; }
+        }
+
+        // Scroll the widget into view, then the item
+        var widget = row.closest('.grid-widget');
+        if (widget) { widget.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+        requestAnimationFrame(function () {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('navigate-highlight');
+            setTimeout(function () { row.classList.remove('navigate-highlight'); }, 1500);
+        });
+    }
+
+    window.TodoRenderer = { setData: setData, setSwimlanes: setSwimlanes, highlightItem: highlightItem };
 })();

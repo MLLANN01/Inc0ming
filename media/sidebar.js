@@ -7,6 +7,7 @@
         var msg = event.data;
         if (msg.type === 'statusUpdate') {
             renderStatus(msg.data);
+            renderPastDue(msg.data);
             renderAgenda(msg.data);
             renderGoals(msg.data);
         }
@@ -76,6 +77,57 @@
         container.appendChild(summary);
     }
 
+    function renderPastDue(data) {
+        var container = document.getElementById('pastdue-status');
+        if (!container) { return; }
+        container.innerHTML = '';
+
+        var items = data.pastDue || [];
+
+        if (items.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'agenda-empty';
+            empty.textContent = 'All clear!';
+            container.appendChild(empty);
+            return;
+        }
+
+        for (var i = 0; i < items.length; i++) {
+            (function (item) {
+                var row = document.createElement('div');
+                row.className = 'pastdue-sidebar-item sidebar-clickable';
+
+                var dot = document.createElement('div');
+                dot.className = 'agenda-dot urgent';
+                row.appendChild(dot);
+
+                var typeLabel = document.createElement('span');
+                typeLabel.className = 'pastdue-sidebar-type';
+                var typeLabels = { todo: 'TODO', goal: 'GOAL', milestone: 'MS', radar: 'RADAR' };
+                typeLabel.textContent = typeLabels[item.sourceType] || item.sourceType;
+                row.appendChild(typeLabel);
+
+                var label = document.createElement('span');
+                label.className = 'agenda-label';
+                label.textContent = item.text;
+                label.title = item.sourceType + ' — ' + item.dueDate + ' — ' + item.text;
+                row.appendChild(label);
+
+                var days = document.createElement('span');
+                days.className = 'agenda-days urgent';
+                days.textContent = item.daysOverdue + 'd';
+                row.appendChild(days);
+
+                row.addEventListener('click', function () {
+                    var sectionKey = item.sourceType === 'todo' ? 'todo' : 'goals';
+                    vscode.postMessage({ type: 'navigateTo', sectionKey: sectionKey, itemId: item.id, sourceType: item.sourceType });
+                });
+
+                container.appendChild(row);
+            })(items[i]);
+        }
+    }
+
     function renderAgenda(data) {
         var container = document.getElementById('agenda-list');
         if (!container) { return; }
@@ -90,36 +142,42 @@
         }
 
         for (var i = 0; i < data.agenda.length; i++) {
-            var item = data.agenda[i];
+            (function (item) {
+                var row = document.createElement('div');
+                row.className = 'agenda-item sidebar-clickable';
 
-            var row = document.createElement('div');
-            row.className = 'agenda-item';
+                // Shape indicator based on item kind
+                var dot = document.createElement('div');
+                var kind = item.itemKind || 'radar';
+                dot.className = 'agenda-dot ' + item.urgency + ' shape-' + kind;
 
-            // Shape indicator based on item kind
-            var dot = document.createElement('div');
-            var kind = item.itemKind || 'radar';
-            dot.className = 'agenda-dot ' + item.urgency + ' shape-' + kind;
+                var label = document.createElement('span');
+                label.className = 'agenda-label';
+                label.textContent = item.label;
+                var kindLabel = kind === 'goal' ? 'Goal' : kind === 'milestone' ? 'Milestone' : kind === 'todo' ? 'Todo' : 'Radar';
+                label.title = kindLabel + ' — ' + item.date + ' — ' + item.label;
 
-            var label = document.createElement('span');
-            label.className = 'agenda-label';
-            label.textContent = item.label;
-            var kindLabel = kind === 'goal' ? 'Goal' : kind === 'milestone' ? 'Milestone' : kind === 'todo' ? 'Todo' : 'Radar';
-            label.title = kindLabel + ' — ' + item.date + ' — ' + item.label;
+                var days = document.createElement('span');
+                days.className = 'agenda-days ' + item.urgency;
+                if (item.days === 0) {
+                    days.textContent = 'today';
+                } else if (item.days === 1) {
+                    days.textContent = '1d';
+                } else {
+                    days.textContent = item.days + 'd';
+                }
 
-            var days = document.createElement('span');
-            days.className = 'agenda-days ' + item.urgency;
-            if (item.days === 0) {
-                days.textContent = 'today';
-            } else if (item.days === 1) {
-                days.textContent = '1d';
-            } else {
-                days.textContent = item.days + 'd';
-            }
+                row.appendChild(dot);
+                row.appendChild(label);
+                row.appendChild(days);
 
-            row.appendChild(dot);
-            row.appendChild(label);
-            row.appendChild(days);
-            container.appendChild(row);
+                row.addEventListener('click', function () {
+                    var sectionKey = kind === 'todo' ? 'todo' : kind === 'goal' || kind === 'milestone' ? 'goals' : null;
+                    vscode.postMessage({ type: 'navigateTo', sectionKey: sectionKey, itemId: item.sourceId, sourceType: kind });
+                });
+
+                container.appendChild(row);
+            })(data.agenda[i]);
         }
     }
 
