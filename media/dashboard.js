@@ -116,6 +116,11 @@
                 sweepEnabled = msg.visible;
                 applySweepState();
                 break;
+            case 'panelVisible':
+                // Redraw radar canvas when panel becomes visible again
+                // (canvas bitmap may be discarded while hidden)
+                if (window.RadarRenderer) { window.RadarRenderer.redraw(); }
+                break;
             case 'sectionOrderUpdate':
                 applySectionOrder(msg.order);
                 break;

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.2] - 2026-03-11
+
+### Fixed
+- Radar grid now appears when reopening the dashboard with the scanner sweep toggled off — `resizeCanvas()` calls `draw()` after computing blips so the canvas is repainted when the `ResizeObserver` fires, and `onDidChangeViewState` sends a redraw message when the panel regains visibility
+
 ## [0.6.1] - 2026-03-11
 
 ### Added

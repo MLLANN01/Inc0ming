@@ -108,6 +108,9 @@
         canvas.style.height = h + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         computeBlips();
+        // Always redraw after resize — when sweep is off the animation loop
+        // is stopped, so ResizeObserver is the only trigger for a repaint.
+        draw();
     }
 
     function setData(data) {
@@ -769,5 +772,9 @@
         }, 0);
     }
 
-    window.RadarRenderer = { init: init, setData: setData, setSweepEnabled: setSweepEnabled, setFilters: setFilters };
+    function redraw() {
+        if (ctx && canvas) { draw(); }
+    }
+
+    window.RadarRenderer = { init: init, setData: setData, setSweepEnabled: setSweepEnabled, setFilters: setFilters, redraw: redraw };
 })();

@@ -54,6 +54,13 @@ export class DashboardPanel {
             this._disposables
         );
 
+        // Redraw radar when panel becomes visible (canvas bitmap may be lost while hidden)
+        this._panel.onDidChangeViewState(
+            (e) => { if (e.webviewPanel.visible) { this._panel.webview.postMessage({ type: 'panelVisible' }); } },
+            null,
+            this._disposables
+        );
+
         // Subscribe to data changes — push updates to webview
         store.onDidChange(() => this._sendAllData(), null, this._disposables);
 
