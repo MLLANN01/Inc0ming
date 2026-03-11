@@ -7,13 +7,17 @@ import {
     QuoteData, QuoteItem,
     ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     GoalData, GoalSection, GoalItem, GoalMilestone,
+    BookmarkData, BookmarkSection, BookmarkItem,
+    ContactData, ContactGroup, ContactItem,
     ParseResult, ParseError, UnparsedLine,
+    ValidationIssue, ValidationResult,
     generateId,
 } from '../models/types';
 import { parseIncoming } from '../parsers/incomingParser';
 import { serializeIncoming } from '../serializers/incomingSerializer';
 import { parseDateMDYY, daysUntil, formatDateMDYY } from '../utils/dateUtils';
 import { VIRT_GOAL_PREFIX, VIRT_MILESTONE_PREFIX, VIRT_TODO_PREFIX } from '../utils/virtualItems';
+import { validateFile } from './fileValidator';
 
 export class DataStore implements vscode.Disposable {
     private _radar: RadarData = { swimlanes: [] };
@@ -21,6 +25,8 @@ export class DataStore implements vscode.Disposable {
     private _quotes: QuoteData = { items: [] };
     private _reminders: ReminderData = { meetings: [] };
     private _goals: GoalData = { sections: [] };
+    private _bookmarks: BookmarkData = { sections: [] };
+    private _contacts: ContactData = { groups: [] };
     private _errors: ParseError[] = [];
     private _unparsedLines: UnparsedLine[] = [];
     private _filePath: string;
@@ -52,6 +58,8 @@ export class DataStore implements vscode.Disposable {
     get quotes(): QuoteData { return this._quotes; }
     get reminders(): ReminderData { return this._reminders; }
     get goals(): GoalData { return this._goals; }
+    get bookmarks(): BookmarkData { return this._bookmarks; }
+    get contacts(): ContactData { return this._contacts; }
     get errors(): ParseError[] { return this._errors; }
     get filePath(): string { return this._filePath; }
 
@@ -840,6 +848,160 @@ export class DataStore implements vscode.Disposable {
         return true;
     }
 
+    // --- Bookmark queries ---
+    findBookmarkSection(id: string): BookmarkSection | undefined {
+        return this._bookmarks.sections.find(s => s.id === id);
+    }
+
+    findBookmark(id: string): { bookmark: BookmarkItem; section: BookmarkSection } | undefined {
+        for (const section of this._bookmarks.sections) {
+            const bookmark = section.items.find(b => b.id === id);
+            if (bookmark) { return { bookmark, section }; }
+        }
+        return undefined;
+    }
+
+    // --- Bookmark section mutations ---
+    addBookmarkSection(name: string): BookmarkSection {
+        const section: BookmarkSection = {
+            kind: 'bookmarkSection',
+            id: generateId('bks'),
+            name,
+            items: [],
+        };
+        this._bookmarks.sections.push(section);
+        return section;
+    }
+
+    renameBookmarkSection(id: string, name: string): boolean {
+        const section = this.findBookmarkSection(id);
+        if (!section) { return false; }
+        section.name = name;
+        return true;
+    }
+
+    deleteBookmarkSection(id: string): boolean {
+        const idx = this._bookmarks.sections.findIndex(s => s.id === id);
+        if (idx < 0) { return false; }
+        this._bookmarks.sections.splice(idx, 1);
+        return true;
+    }
+
+    // --- Bookmark item mutations ---
+    addBookmark(sectionId: string, title: string, url: string): BookmarkItem | undefined {
+        const section = this.findBookmarkSection(sectionId);
+        if (!section) { return undefined; }
+        const item: BookmarkItem = {
+            kind: 'bookmark',
+            id: generateId('bk'),
+            title,
+            url,
+        };
+        section.items.push(item);
+        return item;
+    }
+
+    editBookmark(id: string, title: string, url: string): boolean {
+        const result = this.findBookmark(id);
+        if (!result) { return false; }
+        result.bookmark.title = title;
+        result.bookmark.url = url;
+        return true;
+    }
+
+    deleteBookmark(id: string): boolean {
+        for (const section of this._bookmarks.sections) {
+            const idx = section.items.findIndex(b => b.id === id);
+            if (idx >= 0) { section.items.splice(idx, 1); return true; }
+        }
+        return false;
+    }
+
+    // --- Contact queries ---
+    findContactGroup(id: string): ContactGroup | undefined {
+        return this._contacts.groups.find(g => g.id === id);
+    }
+
+    findContact(id: string): { contact: ContactItem; group: ContactGroup } | undefined {
+        for (const group of this._contacts.groups) {
+            const contact = group.items.find(c => c.id === id);
+            if (contact) { return { contact, group }; }
+        }
+        return undefined;
+    }
+
+    allContactTypes(): string[] {
+        const types = new Set<string>();
+        for (const group of this._contacts.groups) {
+            for (const contact of group.items) {
+                if (contact.contactType) { types.add(contact.contactType); }
+            }
+        }
+        return Array.from(types).sort();
+    }
+
+    // --- Contact group mutations ---
+    addContactGroup(name: string): ContactGroup {
+        const group: ContactGroup = {
+            kind: 'contactGroup',
+            id: generateId('cg'),
+            name,
+            items: [],
+        };
+        this._contacts.groups.push(group);
+        return group;
+    }
+
+    renameContactGroup(id: string, name: string): boolean {
+        const group = this.findContactGroup(id);
+        if (!group) { return false; }
+        group.name = name;
+        return true;
+    }
+
+    deleteContactGroup(id: string): boolean {
+        const idx = this._contacts.groups.findIndex(g => g.id === id);
+        if (idx < 0) { return false; }
+        this._contacts.groups.splice(idx, 1);
+        return true;
+    }
+
+    // --- Contact item mutations ---
+    addContact(groupId: string, name: string, contactType: string): ContactItem | undefined {
+        const group = this.findContactGroup(groupId);
+        if (!group) { return undefined; }
+        const item: ContactItem = {
+            kind: 'contact',
+            id: generateId('ct'),
+            name,
+            contactType,
+            email: '',
+            phone: '',
+            notes: '',
+        };
+        group.items.push(item);
+        return item;
+    }
+
+    editContact(id: string, name: string, contactType: string, email: string, phone: string, notes: string): boolean {
+        const result = this.findContact(id);
+        if (!result) { return false; }
+        result.contact.name = name;
+        result.contact.contactType = contactType;
+        result.contact.email = email;
+        result.contact.phone = phone;
+        result.contact.notes = notes;
+        return true;
+    }
+
+    deleteContact(id: string): boolean {
+        for (const group of this._contacts.groups) {
+            const idx = group.items.findIndex(c => c.id === id);
+            if (idx >= 0) { group.items.splice(idx, 1); return true; }
+        }
+        return false;
+    }
+
     // --- File I/O ---
     load(): void {
         this._cachedAugmentedRadar = null;
@@ -867,6 +1029,8 @@ export class DataStore implements vscode.Disposable {
             this._quotes = { items: [] };
             this._reminders = { meetings: [] };
             this._goals = { sections: [] };
+            this._bookmarks = { sections: [] };
+            this._contacts = { groups: [] };
             this._errors = [];
             this._unparsedLines = [];
         }
@@ -877,7 +1041,7 @@ export class DataStore implements vscode.Disposable {
         this._cachedAugmentedRadar = null;
         this._cachedPastDue = null;
         this._cachedArchive = null;
-        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals);
+        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals, this._bookmarks, this._contacts);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
         try {
@@ -904,9 +1068,29 @@ export class DataStore implements vscode.Disposable {
         this._quotes = result.quotes;
         this._reminders = result.reminders;
         this._goals = result.goals;
+        this._bookmarks = result.bookmarks;
+        this._contacts = result.contacts;
         this._errors = result.errors;
         this._unparsedLines = result.unparsedLines;
         this._updateDiagnostics();
+        return result;
+    }
+
+    /** Run the full validator against the current file content and return results. */
+    validate(): ValidationResult {
+        try {
+            const content = fs.readFileSync(this._filePath, 'utf-8');
+            const parseResult = parseIncoming(content);
+            return validateFile(content, parseResult);
+        } catch {
+            return { issues: [], summary: { errors: 0, warnings: 0, info: 0 } };
+        }
+    }
+
+    /** Run validation, update diagnostics, and return the result. */
+    runCheck(): ValidationResult {
+        const result = this.validate();
+        this._updateDiagnosticsFromValidation(result.issues);
         return result;
     }
 
@@ -915,6 +1099,24 @@ export class DataStore implements vscode.Disposable {
         const diags = this._errors.map(e => {
             const range = new vscode.Range(e.line - 1, 0, e.line - 1, e.content.length);
             return new vscode.Diagnostic(range, e.message, vscode.DiagnosticSeverity.Warning);
+        });
+        this._diagnostics.set(uri, diags);
+    }
+
+    private _updateDiagnosticsFromValidation(issues: ValidationIssue[]): void {
+        const uri = vscode.Uri.file(this._filePath);
+        const diags = issues.map(issue => {
+            const range = new vscode.Range(issue.line - 1, issue.column, issue.line - 1, issue.endColumn);
+            let severity: vscode.DiagnosticSeverity;
+            switch (issue.severity) {
+                case 'error': severity = vscode.DiagnosticSeverity.Error; break;
+                case 'warning': severity = vscode.DiagnosticSeverity.Warning; break;
+                default: severity = vscode.DiagnosticSeverity.Information; break;
+            }
+            const diag = new vscode.Diagnostic(range, issue.message, severity);
+            diag.code = issue.code;
+            diag.source = 'inc0ming';
+            return diag;
         });
         this._diagnostics.set(uri, diags);
     }

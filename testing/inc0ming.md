@@ -144,6 +144,44 @@
         Due: 3/12/26
     - [ ] Profit (50%)
 
+# Bookmarks
+
+## Dev Tools
+- [GitHub](https://github.com)
+- [VS Code Marketplace](https://marketplace.visualstudio.com)
+- [Stack Overflow](https://stackoverflow.com)
+
+## Documentation
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [VS Code API Reference](https://code.visualstudio.com/api/references/vscode-api)
+- [MDN Web Docs](https://developer.mozilla.org)
+
+# Contacts
+
+## Work
+- Sarah Chen (manager)
+    Email: sarah.chen@company.com
+    Phone: 555-0101
+    Notes: Direct manager, weekly 1:1 on Wednesdays
+- Marcus Rivera (colleague)
+    Email: marcus.r@company.com
+    Notes: Platform team lead
+- Jordan Lee (contractor)
+    Email: jordan@consulting.io
+    Phone: 555-0202
+
+## Personal
+- Alex Kim (friend)
+    Email: alex.kim@email.com
+    Phone: 555-0303
+- Priya Patel (mentor)
+    Email: priya@mentorship.org
+    Notes: Monthly coffee chats
+- hjkl; (sdjekdj)
+    Email: jeif@email.com
+    Phone: 4025562345
+    Notes: fehfiefrj
+
 # TODO
 ## Inc0ming
 * [ ] Pro Site Update

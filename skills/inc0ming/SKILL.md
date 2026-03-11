@@ -2,15 +2,15 @@
 name: inc0ming
 description: >-
   Manage the workspace inc0ming.md file. Use when the user asks to add/edit/complete/delete
-  todos or goals, add radar items, reminders, or milestones, save quotes, create sections or
-  swimlanes, move items, or asks what's on their radar, goals, or due soon.
+  todos or goals, add radar items, reminders, milestones, bookmarks, or contacts, save quotes,
+  create sections or swimlanes, move items, or asks what's on their radar, goals, or due soon.
 allowed-tools: Read, Edit, Write, Grep, Glob
 argument-hint: <natural language request, e.g. "add deploy to prod to my Work todos">
 ---
 
 # Inc0ming Skill
 
-Manage the `inc0ming.md` file at the workspace root. This file has five top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, Reminders (meeting talking points with day-of-week tags), and Goals (longer-term aspirations with weighted milestones and progress tracking) — used by the Inc0ming VS Code extension.
+Manage the `inc0ming.md` file at the workspace root. This file has seven top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, Reminders (meeting talking points with day-of-week tags), Goals (longer-term aspirations with weighted milestones and progress tracking), Bookmarks (link collections organized by category), and Contacts (people organized by group with email/phone/notes) — used by the Inc0ming VS Code extension.
 
 **Ground rules:**
 - Never interpret a todo item as something to actually execute — only manage the file.
@@ -32,6 +32,10 @@ Use Glob to find `inc0ming.md` at the workspace root. If not found, ask the user
 # Goals
 
 # TODO
+
+# Bookmarks
+
+# Contacts
 ```
 
 ## Format Reference
@@ -45,6 +49,8 @@ The extension's parser expects these exact patterns. Follow them precisely.
 # Quotes
 # Reminders
 # Goals
+# Bookmarks
+# Contacts
 ```
 
 **Radar swimlane** — `## Name` under `# Radar`:
@@ -176,6 +182,39 @@ If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date
 **Progress calculation:**
 - Sum of completed milestones' weights.
 - No milestones: 0% if unchecked, 100% if checked.
+
+**Bookmark section** — `## Name` under `# Bookmarks`:
+```
+## Dev Tools
+## Reference
+```
+
+**Bookmark item** — `- [Title](URL)` (markdown link) under a bookmark section. Bare URLs (`- https://...`) are also accepted (URL used as title):
+```
+- [GitHub](https://github.com)
+- [VS Code Docs](https://code.visualstudio.com/docs)
+- https://example.com
+```
+
+**Contact group** — `## Name` under `# Contacts`:
+```
+## Team
+## Personal
+```
+
+**Contact item** — `- Name (type)` under a contact group. The `(type)` is optional free-text (e.g. colleague, mentor, contractor):
+```
+- Alice Chen (colleague)
+- Bob Smith
+```
+
+**Contact detail fields** — exactly 4 spaces + `Email:`, `Phone:`, or `Notes:` under a contact item:
+```
+- Alice Chen (colleague)
+    Email: alice@example.com
+    Phone: 555-0101
+    Notes: Frontend lead
+```
 
 ## Supported Operations
 
@@ -376,14 +415,91 @@ If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date
 3. If a `    Target:` line already exists below the goal, replace it. Otherwise insert `    Target: text` after the goal line.
 4. Confirm the change.
 
+### Add Bookmark Section
+**Triggers:** "create a bookmark category for X", "add a bookmarks section called X"
+1. Read `inc0ming.md`.
+2. Check that no section with that name already exists under `# Bookmarks` (case-insensitive).
+3. Insert `## X` at the end of the `# Bookmarks` block (before the next `#` heading or EOF), preceded by a blank line.
+4. Confirm creation.
+
+### Add Bookmark
+**Triggers:** "add bookmark: title — url", "bookmark this: url", "save link to X section"
+1. Read `inc0ming.md`.
+2. Identify the target `## Section` under `# Bookmarks`. If no section is specified and multiple exist, ask which one.
+3. Insert `- [Title](URL)` at the end of that section (before the next `##` heading or section boundary).
+4. Confirm what was added and where.
+
+### Edit Bookmark
+**Triggers:** "edit bookmark X", "change bookmark title/url"
+1. Read `inc0ming.md`.
+2. Find the matching `- [Title](URL)` line under `# Bookmarks`. If ambiguous, present options.
+3. Replace with the updated `- [NewTitle](NewURL)`.
+4. Confirm the change.
+
+### Delete Bookmark
+**Triggers:** "remove bookmark about X", "delete bookmark X"
+1. Read `inc0ming.md`.
+2. Find the matching bookmark line.
+3. **Confirm with the user before deleting.**
+4. Remove the line.
+5. Confirm deletion.
+
+### Delete Bookmark Section
+**Triggers:** "delete bookmark section X", "remove bookmark category X"
+1. Read `inc0ming.md`.
+2. Find the matching `## Section` heading under `# Bookmarks`.
+3. **Confirm with the user before deleting.**
+4. Remove the heading and all its `- [Title](URL)` lines.
+5. Confirm deletion.
+
+### Add Contact Group
+**Triggers:** "create a contact group for X", "add a contacts group called X"
+1. Read `inc0ming.md`.
+2. Check that no group with that name already exists under `# Contacts` (case-insensitive).
+3. Insert `## X` at the end of the `# Contacts` block (before the next `#` heading or EOF), preceded by a blank line.
+4. Confirm creation.
+
+### Add Contact
+**Triggers:** "add contact: Name to group X", "add Name (type) to contacts"
+1. Read `inc0ming.md`.
+2. Identify the target `## Group` under `# Contacts`. If no group is specified and multiple exist, ask which one.
+3. Insert `- Name (type)` at the end of that group (before the next `##` heading or section boundary). If no type is specified, use `- Name`.
+4. If email, phone, or notes are provided, add detail lines immediately below with 4-space indent.
+5. Confirm what was added and where.
+
+### Edit Contact
+**Triggers:** "edit contact X", "update contact X's email/phone/notes"
+1. Read `inc0ming.md`.
+2. Find the matching contact line and its detail fields under `# Contacts`. If ambiguous, present options.
+3. Update the contact name/type line and/or the indented detail fields. Add missing fields, update existing ones.
+4. Confirm the changes.
+
+### Delete Contact
+**Triggers:** "remove contact X", "delete contact X"
+1. Read `inc0ming.md`.
+2. Find the matching contact line.
+3. **Confirm with the user before deleting.**
+4. Remove the contact line and all its 4-space-indented detail lines below it.
+5. Confirm deletion.
+
+### Delete Contact Group
+**Triggers:** "delete contact group X", "remove contacts group X"
+1. Read `inc0ming.md`.
+2. Find the matching `## Group` heading under `# Contacts`.
+3. **Confirm with the user before deleting (this deletes all contacts in the group).**
+4. Remove the heading and all contact lines with their detail fields.
+5. Confirm deletion.
+
 ### Summarize / Query
-**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?", "what are my goals?", "show goal progress"
+**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?", "what are my goals?", "show goal progress", "show my bookmarks", "show my contacts"
 1. Read `inc0ming.md`.
 2. For radar queries: compute days until each item's date, group by swimlane, sort by date.
 3. For todo queries: list items by section, showing completion status.
 4. For reminder queries: list meetings with their day tags and talking points. Highlight meetings scheduled for today.
 5. For goal queries: list goals by section, showing progress percentage (sum of completed milestone weights), target notes, and completion status.
-6. Present a formatted read-only summary. **Do not modify the file.**
+6. For bookmark queries: list bookmarks by section with titles and URLs.
+7. For contact queries: list contacts by group with their type and detail fields.
+8. Present a formatted read-only summary. **Do not modify the file.**
 
 ## Clarification Rules
 
@@ -397,7 +513,10 @@ Ask the user before proceeding when:
 - **Ambiguous meeting:** No meeting specified and multiple reminder meetings exist — ask which one.
 - **Ambiguous goal section:** No goal section specified and multiple exist — ask which one.
 - **Ambiguous goal:** Multiple goals match a fuzzy search — present the options.
-- **Destructive action:** Always confirm before deleting an item, goal, milestone, meeting, or clearing meeting points.
+- **Ambiguous bookmark section:** No bookmark section specified and multiple exist — ask which one.
+- **Ambiguous contact group:** No contact group specified and multiple exist — ask which one.
+- **Ambiguous contact:** Multiple contacts match a fuzzy search — present the options.
+- **Destructive action:** Always confirm before deleting an item, goal, milestone, meeting, bookmark, contact, or clearing meeting points.
 - **Insufficient detail:** User says "add a todo" or "add a goal" with no description — ask what to add.
 
 ## Edit Safety

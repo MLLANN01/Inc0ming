@@ -1,7 +1,8 @@
 // @ts-nocheck
 /* Grid Manager — widget drag-to-reorder and resize */
 (function () {
-    var grid = null;
+    var GRID_IDS = ['todo-grid', 'bookmarks-grid'];
+    var grids = [];
     var layout = {}; // { sectionId: { w: number, h: number, order: number } }
     var dragState = null;
     var resizeState = null;
@@ -13,8 +14,11 @@
     var DRAG_THRESHOLD = 3;
 
     function init(savedLayout) {
-        grid = document.getElementById('todo-grid');
-        if (!grid) { return; }
+        grids = [];
+        for (var i = 0; i < GRID_IDS.length; i++) {
+            var el = document.getElementById(GRID_IDS[i]);
+            if (el) { grids.push(el); }
+        }
         if (savedLayout && typeof savedLayout === 'object') {
             layout = savedLayout;
         }
@@ -32,46 +36,56 @@
         applyLayout();
     }
 
-    function applyLayout() {
-        if (!grid) { return; }
-        var widgets = grid.querySelectorAll('.grid-widget');
-        // Build an array of { element, order }
-        var ordered = [];
-        for (var i = 0; i < widgets.length; i++) {
-            var id = widgets[i].dataset.sectionId;
-            var cfg = layout[id] || {};
-            var w = cfg.w || 6;
-            var h = cfg.h || 300;
-            var order = cfg.order !== undefined ? cfg.order : i;
-
-            widgets[i].style.gridColumn = 'span ' + Math.min(Math.max(w, MIN_COLS), MAX_COLS);
-            widgets[i].style.height = Math.max(h, MIN_HEIGHT) + 'px';
-            ordered.push({ el: widgets[i], order: order });
+    function findParentGrid(widget) {
+        for (var i = 0; i < grids.length; i++) {
+            if (grids[i].contains(widget)) { return grids[i]; }
         }
+        return null;
+    }
 
-        // Sort by order and reorder DOM
-        ordered.sort(function (a, b) { return a.order - b.order; });
-        for (var j = 0; j < ordered.length; j++) {
-            grid.appendChild(ordered[j].el);
+    function applyLayout() {
+        for (var g = 0; g < grids.length; g++) {
+            var grid = grids[g];
+            var widgets = grid.querySelectorAll('.grid-widget');
+            // Build an array of { element, order }
+            var ordered = [];
+            for (var i = 0; i < widgets.length; i++) {
+                var id = widgets[i].dataset.sectionId;
+                var cfg = layout[id] || {};
+                var w = cfg.w || 6;
+                var h = cfg.h || 300;
+                var order = cfg.order !== undefined ? cfg.order : i;
+
+                widgets[i].style.gridColumn = 'span ' + Math.min(Math.max(w, MIN_COLS), MAX_COLS);
+                widgets[i].style.height = Math.max(h, MIN_HEIGHT) + 'px';
+                ordered.push({ el: widgets[i], order: order });
+            }
+
+            // Sort by order and reorder DOM
+            ordered.sort(function (a, b) { return a.order - b.order; });
+            for (var j = 0; j < ordered.length; j++) {
+                grid.appendChild(ordered[j].el);
+            }
         }
     }
 
     function saveLayout() {
-        if (!grid) { return; }
-        // Rebuild layout from current DOM order
-        var widgets = grid.querySelectorAll('.grid-widget');
-        for (var i = 0; i < widgets.length; i++) {
-            var id = widgets[i].dataset.sectionId;
-            if (!layout[id]) { layout[id] = {}; }
-            layout[id].order = i;
+        for (var g = 0; g < grids.length; g++) {
+            var grid = grids[g];
+            var widgets = grid.querySelectorAll('.grid-widget');
+            for (var i = 0; i < widgets.length; i++) {
+                var id = widgets[i].dataset.sectionId;
+                if (!layout[id]) { layout[id] = {}; }
+                layout[id].order = i;
 
-            // Parse current width/height
-            var colSpan = widgets[i].style.gridColumn;
-            var match = colSpan && colSpan.match(/span\s+(\d+)/);
-            if (match) { layout[id].w = parseInt(match[1], 10); }
+                // Parse current width/height
+                var colSpan = widgets[i].style.gridColumn;
+                var match = colSpan && colSpan.match(/span\s+(\d+)/);
+                if (match) { layout[id].w = parseInt(match[1], 10); }
 
-            var h = parseInt(widgets[i].style.height, 10);
-            if (h && !isNaN(h)) { layout[id].h = h; }
+                var h = parseInt(widgets[i].style.height, 10);
+                if (h && !isNaN(h)) { layout[id].h = h; }
+            }
         }
 
         window.DashboardBridge.postMessage({
@@ -90,9 +104,13 @@
         var widget = header.closest('.grid-widget');
         if (!widget) { return; }
 
+        var parentGrid = findParentGrid(widget);
+        if (!parentGrid) { return; }
+
         e.preventDefault();
         dragState = {
             widget: widget,
+            grid: parentGrid,
             startX: e.clientX,
             startY: e.clientY,
             active: false,
@@ -145,8 +163,8 @@
         dragState.ghost.style.left = (e.clientX - dragState.offsetX) + 'px';
         dragState.ghost.style.top = (e.clientY - dragState.offsetY) + 'px';
 
-        // Determine drop target
-        var widgets = grid.querySelectorAll('.grid-widget:not([style*="display: none"])');
+        // Determine drop target within the same grid
+        var widgets = dragState.grid.querySelectorAll('.grid-widget:not([style*="display: none"])');
         var closest = null;
         var closestDist = Infinity;
         var insertBefore = true;
@@ -166,9 +184,9 @@
         // Move placeholder
         if (closest && dragState.placeholder) {
             if (insertBefore) {
-                grid.insertBefore(dragState.placeholder, closest);
+                dragState.grid.insertBefore(dragState.placeholder, closest);
             } else {
-                grid.insertBefore(dragState.placeholder, closest.nextSibling);
+                dragState.grid.insertBefore(dragState.placeholder, closest.nextSibling);
             }
         }
     }
@@ -204,13 +222,16 @@
         if (!handle) { return; }
 
         var widget = handle.closest('.grid-widget');
-        if (!widget || !grid) { return; }
+        if (!widget) { return; }
+
+        var parentGrid = findParentGrid(widget);
+        if (!parentGrid) { return; }
 
         e.preventDefault();
         e.stopPropagation();
 
         var rect = widget.getBoundingClientRect();
-        var gridRect = grid.getBoundingClientRect();
+        var gridRect = parentGrid.getBoundingClientRect();
         var colWidth = gridRect.width / 12;
 
         resizeState = {
@@ -257,7 +278,7 @@
         }
     }
 
-    // Attach global listeners to #todo-grid
+    // Attach global listeners
     document.addEventListener('mousedown', function (e) {
         if (e.target.closest('.widget-resize-handle')) {
             onResizeStart(e);

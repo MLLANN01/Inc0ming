@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0] - 2026-03-11
+
+### Added
+- **Contacts tree view** — native VS Code TreeView in the explorer panel replacing the dashboard webview section. Contact groups, contacts, and details (email, phone, notes) displayed hierarchically with group/person/detail icons. Full CRUD via context menus and title bar buttons (Add Contact Group, Add Contact, Edit Contact, Delete).
+- **Bookmark resizing** — bookmark grid cards are now resizable and draggable like TODO widgets, using the same 12-column grid layout and GridManager
+
+### Fixed
+- Bookmark resize handles now work — switched from `auto-fill` CSS grid to 12-column layout compatible with GridManager's `span N` resize logic
+- GridManager now supports multiple grids (TODO and Bookmarks) instead of being hardcoded to `#todo-grid`
+
+### Removed
+- Contacts section from dashboard webview (replaced by tree view)
+- Contacts section from sidebar status view (managed via tree view)
+- `contactsRenderer.js` dashboard renderer
+- `contactsUpdate` and 6 contact webview message types (CRUD now handled via VS Code commands)
+
 ## [0.5.0] - 2026-03-10
 
 ### Added

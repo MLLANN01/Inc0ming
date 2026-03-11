@@ -66,6 +66,10 @@
             window.ArchiveRenderer.setData(payload.archive);
         }
 
+        if (window.BookmarkRenderer && payload.bookmarks) {
+            window.BookmarkRenderer.setData(payload.bookmarks);
+        }
+
         sweepEnabled = payload.radarVisible;
         applySweepState();
 
@@ -96,6 +100,11 @@
                 break;
             case 'goalsUpdate':
                 window.GoalsRenderer.setData(msg.data);
+                break;
+            case 'bookmarksUpdate':
+                if (window.BookmarkRenderer) {
+                    window.BookmarkRenderer.setData(msg.data);
+                }
                 break;
             case 'layoutUpdate':
                 currentLayout = msg.layout || {};
@@ -247,12 +256,14 @@
     setupCollapsible('reminders-header', 'reminders-body');
     setupCollapsible('goals-header', 'goals-body');
     setupCollapsible('todo-header', 'todo-body');
+    setupCollapsible('bookmarks-header', 'bookmarks-body');
     setupCollapsible('archive-header', 'archive-body');
 
     // ====== SINGLE-INPUT SUBMIT PATTERNS ======
     setupSubmitInput('new-swimlane-input', 'add-swimlane-btn', 'addSwimlane', 'name');
     setupSubmitInput('new-section-input', 'add-section-btn', 'addTodoSection', 'name');
     setupSubmitInput('new-goal-section-input', 'add-goal-section-btn', 'addGoalSection', 'name');
+    setupSubmitInput('new-bookmark-section-input', 'add-bookmark-section-btn', 'addBookmarkSection', 'name');
 
     // ====== QUOTES — multi-input (kept manual) ======
     var newQuoteText = document.getElementById('new-quote-text');

@@ -2018,3 +2018,225 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .archive-delete-btn:hover {
     color: var(--urgent);
 }
+
+/* ====== BOOKMARKS ====== */
+#bookmarks-container {
+    padding: 0 20px 16px;
+}
+
+#bookmarks-header {
+    text-align: left;
+}
+
+#bookmarks-body.collapsed {
+    display: none;
+}
+
+#bookmarks-search-row {
+    margin-bottom: 8px;
+}
+
+#bookmarks-search {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+#bookmarks-search:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+#bookmarks-search::placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+#new-bookmark-section-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#new-bookmark-section-input {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-bookmark-section-input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#add-bookmark-section-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-bookmark-section-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+#bookmarks-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+}
+
+.bookmark-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.15s;
+}
+
+.bookmark-item:hover {
+    background: var(--surface-light);
+}
+
+.bookmark-icon {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.bookmark-title {
+    flex: 1;
+    color: var(--cyan);
+    cursor: pointer;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bookmark-title:hover {
+    color: var(--cyan-dim);
+    text-decoration: underline;
+}
+
+.bookmark-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.bookmark-item:hover .bookmark-action-btn {
+    opacity: 1;
+}
+
+.bookmark-copy-btn:hover {
+    color: var(--cyan);
+}
+
+.bookmark-edit-btn:hover {
+    color: var(--cyan);
+}
+
+.bookmark-action-btn.close-btn:hover {
+    color: var(--urgent);
+}
+
+.bookmark-inline-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 6px;
+}
+
+.bookmark-inline-edit input {
+    width: 100%;
+}
+
+.bookmark-inline-edit button {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.bookmark-inline-edit button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.bookmark-inline-edit button.cancel-btn {
+    color: var(--text-dim);
+}
+
+.bookmark-add-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 10px;
+    margin-top: 4px;
+}
+
+.bookmark-add-form.hidden { display: none; }
+
+.bookmark-add-form input {
+    flex: 1;
+    min-width: 80px;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.bookmark-add-form input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.bookmark-add-form button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.bookmark-add-form button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.bookmark-add-form button.cancel-btn {
+    color: var(--text-dim);
+}

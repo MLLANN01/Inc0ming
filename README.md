@@ -9,6 +9,8 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 - **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days). Right-click blips to edit or delete. Hover stacked blips to see all items.
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
+- **Bookmarks** — Resizable grid cards for bookmark link collections, organized by category with search, inline add/edit/delete, and click-to-open
+- **Contacts Tree View** — Native VS Code tree view in the explorer panel for managing contact groups, contacts, and details (email, phone, notes) with full CRUD via context menus
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
 - **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
 - **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
@@ -78,6 +80,22 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
     - [ ] Take practice exams (15%)
 - [x] Ship cloud migration Phase 1
     Completed 4/8/26 — two days ahead, zero downtime
+
+# Bookmarks
+
+## Dev Tools
+- [GitHub](https://github.com)
+- [VS Code Docs](https://code.visualstudio.com/docs)
+
+# Contacts
+
+## Team
+- Alice Chen (colleague)
+    Email: alice@example.com
+    Phone: 555-0101
+    Notes: Frontend lead
+- Bob Smith (mentor)
+    Email: bob@example.com
 ```
 
 ### Format Reference
@@ -106,6 +124,11 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 | Milestone | `    - [ ] Text (N%)` (4 spaces + dash + optional weight) |
 | Milestone due date | `        Due: M/D/YY` (8 spaces indent) |
 | Milestone completion note | `        Completed Text` (8 spaces indent) |
+| Bookmark section | `## Name` under `# Bookmarks` |
+| Bookmark item | `- [Title](URL)` under a bookmark section |
+| Contact group | `## Name` under `# Contacts` |
+| Contact item | `- Name (type)` under a contact group |
+| Contact detail | `    Email: / Phone: / Notes:` (4 spaces indent) |
 
 ## Configuration
 
@@ -125,6 +148,7 @@ All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+
 - **Add Quote** / **Edit Quote** / **Delete Quote**
 - **Add Meeting** / **Add Talking Point**
 - **Add Goal** / **Add Goal Section** / **Add Milestone**
+- **Add Contact Group** / **Add Contact** / **Edit Contact** / **Delete** (contacts)
 - **Edit** / **Delete** / **Toggle Complete**
 
 ## Building from Source

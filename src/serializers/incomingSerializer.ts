@@ -1,4 +1,4 @@
-import { RadarData, TodoData, QuoteData, ReminderData, GoalData, UnparsedLine } from '../models/types';
+import { RadarData, TodoData, QuoteData, ReminderData, GoalData, BookmarkData, ContactData, UnparsedLine } from '../models/types';
 import { formatDateMDYY } from '../utils/dateUtils';
 
 export function serializeIncoming(
@@ -8,6 +8,8 @@ export function serializeIncoming(
     quotes: QuoteData = { items: [] },
     reminders: ReminderData = { meetings: [] },
     goals: GoalData = { sections: [] },
+    bookmarks: BookmarkData = { sections: [] },
+    contacts: ContactData = { groups: [] },
 ): string {
     const parts: string[] = [];
 
@@ -99,6 +101,39 @@ export function serializeIncoming(
                     if (ms.completionNote) { parts.push(`        Completed ${ms.completionNote}`); }
                     if (ms.dueDate) { parts.push(`        Due: ${ms.dueDate}`); }
                 }
+            }
+            parts.push('');
+        }
+    }
+
+    // === Bookmarks Section ===
+    if (bookmarks.sections.length > 0) {
+        parts.push('# Bookmarks');
+        parts.push('');
+        for (const section of bookmarks.sections) {
+            parts.push(`## ${section.name}`);
+            for (const item of section.items) {
+                parts.push(`- [${item.title}](${item.url})`);
+            }
+            parts.push('');
+        }
+    }
+
+    // === Contacts Section ===
+    if (contacts.groups.length > 0) {
+        parts.push('# Contacts');
+        parts.push('');
+        for (const group of contacts.groups) {
+            parts.push(`## ${group.name}`);
+            for (const contact of group.items) {
+                if (contact.contactType) {
+                    parts.push(`- ${contact.name} (${contact.contactType})`);
+                } else {
+                    parts.push(`- ${contact.name}`);
+                }
+                if (contact.email) { parts.push(`    Email: ${contact.email}`); }
+                if (contact.phone) { parts.push(`    Phone: ${contact.phone}`); }
+                if (contact.notes) { parts.push(`    Notes: ${contact.notes}`); }
             }
             parts.push('');
         }

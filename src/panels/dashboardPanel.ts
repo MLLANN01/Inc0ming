@@ -84,6 +84,7 @@ export class DashboardPanel {
                 sectionOrder,
                 parseErrors,
                 archive: this._store.computeArchive(),
+                bookmarks: this._store.bookmarks,
             },
         });
     }
@@ -269,6 +270,30 @@ export class DashboardPanel {
             case 'editGoalRadarLink':
                 this._store.editGoalRadarLink(msg.id, msg.radarLink);
                 break;
+            case 'addBookmarkSection':
+                this._store.addBookmarkSection(msg.name);
+                break;
+            case 'renameBookmarkSection':
+                this._store.renameBookmarkSection(msg.id, msg.name);
+                break;
+            case 'deleteBookmarkSection':
+                this._store.deleteBookmarkSection(msg.id);
+                break;
+            case 'addBookmark':
+                this._store.addBookmark(msg.sectionId, msg.title, msg.url);
+                break;
+            case 'editBookmark':
+                this._store.editBookmark(msg.id, msg.title, msg.url);
+                break;
+            case 'deleteBookmark':
+                this._store.deleteBookmark(msg.id);
+                break;
+            case 'openBookmark':
+                vscode.env.openExternal(vscode.Uri.parse(msg.url));
+                return; // Read-only action, don't save
+            case 'copyBookmarkUrl':
+                vscode.env.clipboard.writeText(msg.url);
+                return; // Read-only action, don't save
             default:
                 return; // Unknown message, don't save
         }
@@ -289,6 +314,7 @@ export class DashboardPanel {
         const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
         const goalsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'goalsRenderer.js'));
         const archiveJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'archiveRenderer.js'));
+        const bookmarkJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'bookmarkRenderer.js'));
         const dateUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'dateUtils.js'));
         const editUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'editUtils.js'));
 
@@ -396,6 +422,23 @@ export class DashboardPanel {
             </div>
         </div>
 
+        <div id="bookmarks-container" data-section-key="bookmarks">
+            <div class="section-header collapsible" id="bookmarks-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron open">\u25bc</span> Bookmarks
+            </div>
+            <div id="bookmarks-body">
+                <div id="bookmarks-search-row">
+                    <input type="text" id="bookmarks-search" placeholder="Search bookmarks...">
+                </div>
+                <div id="new-bookmark-section-row">
+                    <input type="text" id="new-bookmark-section-input" placeholder="New category name...">
+                    <button id="add-bookmark-section-btn">+ Add Category</button>
+                </div>
+                <div id="bookmarks-grid"></div>
+            </div>
+        </div>
+
         <div id="quotes-manage-container" data-section-key="quotes">
             <div class="section-header collapsible" id="quotes-header">
                 <span class="drag-grip">\u2847</span>
@@ -430,6 +473,7 @@ export class DashboardPanel {
     <script nonce="${nonce}" src="${reminderJsUri}"></script>
     <script nonce="${nonce}" src="${goalsJsUri}"></script>
     <script nonce="${nonce}" src="${archiveJsUri}"></script>
+    <script nonce="${nonce}" src="${bookmarkJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>

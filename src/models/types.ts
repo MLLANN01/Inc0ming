@@ -104,6 +104,47 @@ export interface GoalData {
     sections: GoalSection[];
 }
 
+// ===== Bookmark Models =====
+export interface BookmarkItem {
+    kind: 'bookmark';
+    id: string;
+    title: string;
+    url: string;
+}
+
+export interface BookmarkSection {
+    kind: 'bookmarkSection';
+    id: string;
+    name: string;
+    items: BookmarkItem[];
+}
+
+export interface BookmarkData {
+    sections: BookmarkSection[];
+}
+
+// ===== Contact Models =====
+export interface ContactItem {
+    kind: 'contact';
+    id: string;
+    name: string;
+    contactType: string;    // free-text, e.g. "colleague", "mentor", "contractor"
+    email: string;
+    phone: string;
+    notes: string;
+}
+
+export interface ContactGroup {
+    kind: 'contactGroup';
+    id: string;
+    name: string;
+    items: ContactItem[];
+}
+
+export interface ContactData {
+    groups: ContactGroup[];
+}
+
 // ===== Todo Models =====
 export interface TodoItem {
     kind: 'todo';
@@ -136,6 +177,7 @@ export interface ParseError {
 export interface UnparsedLine {
     content: string;
     afterSection: string;
+    line?: number;
 }
 
 export interface ParseResult {
@@ -144,8 +186,26 @@ export interface ParseResult {
     quotes: QuoteData;
     reminders: ReminderData;
     goals: GoalData;
+    bookmarks: BookmarkData;
+    contacts: ContactData;
     errors: ParseError[];
     unparsedLines: UnparsedLine[];
+}
+
+// ===== Validation =====
+export interface ValidationIssue {
+    line: number;       // 1-based
+    column: number;     // 0-based
+    endColumn: number;  // 0-based
+    severity: 'error' | 'warning' | 'info';
+    code: string;       // e.g. 'E001', 'W004'
+    message: string;
+    section?: string;   // 'radar' | 'todo' | 'goals' | 'reminders' | 'quotes' | 'structure'
+}
+
+export interface ValidationResult {
+    issues: ValidationIssue[];
+    summary: { errors: number; warnings: number; info: number };
 }
 
 // ===== Serialized types (for webview, dates as ISO strings) =====
@@ -184,6 +244,7 @@ export type ExtensionMessage =
     | { type: 'quotesUpdate'; data: QuoteData }
     | { type: 'remindersUpdate'; data: ReminderData }
     | { type: 'goalsUpdate'; data: GoalData }
+    | { type: 'bookmarksUpdate'; data: BookmarkData }
     | { type: 'parseErrors'; errors: ParseError[] };
 
 // Webview → Extension
@@ -236,5 +297,13 @@ export type WebviewMessage =
     | { type: 'editTodoDueDate'; id: string; dueDate: string }
     | { type: 'editTodoRadarLink'; id: string; radarLink: string }
     | { type: 'editGoalRadarLink'; id: string; radarLink: string }
-    | { type: 'saveSectionOrder'; order: string[] };
+    | { type: 'saveSectionOrder'; order: string[] }
+    | { type: 'addBookmarkSection'; name: string }
+    | { type: 'renameBookmarkSection'; id: string; name: string }
+    | { type: 'deleteBookmarkSection'; id: string }
+    | { type: 'addBookmark'; sectionId: string; title: string; url: string }
+    | { type: 'editBookmark'; id: string; title: string; url: string }
+    | { type: 'deleteBookmark'; id: string }
+    | { type: 'openBookmark'; url: string }
+    | { type: 'copyBookmarkUrl'; url: string };
 

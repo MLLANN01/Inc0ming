@@ -3,8 +3,9 @@ import { DataStore } from './services/dataStore';
 import { DashboardPanel } from './panels/dashboardPanel';
 import { SidebarViewProvider } from './panels/sidebarViewProvider';
 import { RadarTreeProvider } from './panels/radarTreeProvider';
+import { ContactsTreeProvider } from './panels/contactsTreeProvider';
 import { NotificationManager } from './utils/notifications';
-import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem, ReminderMeeting } from './models/types';
+import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem, ReminderMeeting, ContactGroup, ContactItem } from './models/types';
 import { parseDayTags } from './parsers/incomingParser';
 import { formatDateMDYY } from './utils/dateUtils';
 
@@ -28,6 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
         showCollapseAll: true,
     });
     context.subscriptions.push(radarTreeView);
+
+    // Contacts tree view in explorer
+    const contactsTreeProvider = new ContactsTreeProvider(store);
+    const contactsTreeView = vscode.window.createTreeView('inc0ming.contactsTree', {
+        treeDataProvider: contactsTreeProvider,
+        showCollapseAll: true,
+    });
+    context.subscriptions.push(contactsTreeView);
 
     store.onDidChange(() => {
         notifications.checkItems(store);
@@ -349,6 +358,160 @@ export function activate(context: vscode.ExtensionContext) {
 
             store.deleteQuote(quote.id);
             await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.checkFile', async () => {
+            const result = store.runCheck();
+            const total = result.summary.errors + result.summary.warnings + result.summary.info;
+            if (total === 0) {
+                vscode.window.showInformationMessage('Inc0ming: No issues found in inc0ming.md');
+            } else {
+                const action = await vscode.window.showWarningMessage(
+                    `Inc0ming: Found ${total} issue(s) in inc0ming.md`,
+                    'Show Problems', 'Show File'
+                );
+                if (action === 'Show Problems') {
+                    vscode.commands.executeCommand('workbench.actions.view.problems');
+                } else if (action === 'Show File') {
+                    const doc = await vscode.workspace.openTextDocument(store.filePath);
+                    vscode.window.showTextDocument(doc);
+                }
+            }
+        }),
+
+        vscode.commands.registerCommand('inc0ming.addContactGroup', async () => {
+            const name = await vscode.window.showInputBox({ prompt: 'Contact group name' });
+            if (!name) { return; }
+            store.addContactGroup(name);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.addContact', async (element?: any) => {
+            let groupId: string | undefined;
+
+            if (element && element.kind === 'contactGroup' && element.group) {
+                groupId = element.group.id;
+            } else if (element && element.id) {
+                const group = store.findContactGroup(element.id);
+                if (group) { groupId = group.id; }
+            }
+
+            if (!groupId) {
+                const groups = store.contacts.groups;
+                if (groups.length === 0) {
+                    vscode.window.showWarningMessage('Add a contact group first.');
+                    return;
+                }
+                if (groups.length === 1) {
+                    groupId = groups[0].id;
+                } else {
+                    const pick = await vscode.window.showQuickPick(
+                        groups.map(g => ({ label: g.name, id: g.id })),
+                        { placeHolder: 'Select group' }
+                    );
+                    if (!pick) { return; }
+                    groupId = pick.id;
+                }
+            }
+
+            const name = await vscode.window.showInputBox({ prompt: 'Contact name' });
+            if (!name) { return; }
+
+            const existingTypes = store.allContactTypes();
+            let contactType = '';
+            if (existingTypes.length > 0) {
+                const items = existingTypes.map(t => ({ label: t }));
+                items.push({ label: '$(add) New type...' });
+                const pick = await vscode.window.showQuickPick(items, { placeHolder: 'Contact type' });
+                if (!pick) { return; }
+                if (pick.label === '$(add) New type...') {
+                    const newType = await vscode.window.showInputBox({ prompt: 'New contact type' });
+                    contactType = newType || '';
+                } else {
+                    contactType = pick.label;
+                }
+            } else {
+                const typed = await vscode.window.showInputBox({ prompt: 'Contact type (e.g. colleague, mentor)' });
+                contactType = typed || '';
+            }
+
+            store.addContact(groupId, name, contactType);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.editContact', async (element?: any) => {
+            if (!element) { return; }
+            let contactId: string | undefined;
+            if (element.kind === 'contact' && element.contact) {
+                contactId = element.contact.id;
+            } else if (element.id) {
+                contactId = element.id;
+            }
+            if (!contactId) { return; }
+
+            const result = store.findContact(contactId);
+            if (!result) { return; }
+            const c = result.contact;
+
+            const name = await vscode.window.showInputBox({ prompt: 'Name', value: c.name });
+            if (name === undefined) { return; }
+
+            const contactType = await vscode.window.showInputBox({ prompt: 'Type', value: c.contactType });
+            if (contactType === undefined) { return; }
+
+            const email = await vscode.window.showInputBox({ prompt: 'Email', value: c.email });
+            if (email === undefined) { return; }
+
+            const phone = await vscode.window.showInputBox({ prompt: 'Phone', value: c.phone });
+            if (phone === undefined) { return; }
+
+            const notes = await vscode.window.showInputBox({ prompt: 'Notes', value: c.notes });
+            if (notes === undefined) { return; }
+
+            store.editContact(contactId, name, contactType, email, phone, notes);
+            await store.save();
+        }),
+
+        vscode.commands.registerCommand('inc0ming.deleteContactItem', async (element?: any) => {
+            if (!element) { return; }
+
+            // Determine if this is a group or a contact
+            if (element.kind === 'contactGroup' && element.group) {
+                const confirm = await vscode.window.showWarningMessage(
+                    `Delete group "${element.group.name}" and all its contacts?`, { modal: true }, 'Delete'
+                );
+                if (confirm !== 'Delete') { return; }
+                store.deleteContactGroup(element.group.id);
+                await store.save();
+            } else if (element.kind === 'contact' && element.contact) {
+                const confirm = await vscode.window.showWarningMessage(
+                    `Delete contact "${element.contact.name}"?`, { modal: true }, 'Delete'
+                );
+                if (confirm !== 'Delete') { return; }
+                store.deleteContact(element.contact.id);
+                await store.save();
+            } else if (element.id) {
+                // Fallback: try group first, then contact
+                const group = store.findContactGroup(element.id);
+                if (group) {
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Delete group "${group.name}" and all its contacts?`, { modal: true }, 'Delete'
+                    );
+                    if (confirm !== 'Delete') { return; }
+                    store.deleteContactGroup(group.id);
+                    await store.save();
+                    return;
+                }
+                const contactResult = store.findContact(element.id);
+                if (contactResult) {
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Delete contact "${contactResult.contact.name}"?`, { modal: true }, 'Delete'
+                    );
+                    if (confirm !== 'Delete') { return; }
+                    store.deleteContact(contactResult.contact.id);
+                    await store.save();
+                }
+            }
         }),
 
         store,

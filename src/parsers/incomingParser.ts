@@ -4,6 +4,8 @@ import {
     QuoteData, QuoteItem,
     ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     GoalData, GoalSection, GoalItem, GoalMilestone,
+    BookmarkData, BookmarkSection,
+    ContactData, ContactGroup, ContactItem,
     ParseResult, ParseError, UnparsedLine,
     generateId, resetIdCounter,
 } from '../models/types';
@@ -25,6 +27,8 @@ export function parseIncoming(content: string): ParseResult {
         else if (trimmed === '# Quotes') { sectionStarts.push({ name: 'quotes', start: i }); }
         else if (trimmed === '# Reminders') { sectionStarts.push({ name: 'reminders', start: i }); }
         else if (trimmed === '# Goals') { sectionStarts.push({ name: 'goals', start: i }); }
+        else if (trimmed === '# Bookmarks') { sectionStarts.push({ name: 'bookmarks', start: i }); }
+        else if (trimmed === '# Contacts') { sectionStarts.push({ name: 'contacts', start: i }); }
     }
 
     // Determine section ranges: each section runs from heading+1 to next heading (or EOF)
@@ -42,14 +46,18 @@ export function parseIncoming(content: string): ParseResult {
     const quotesSection = getSectionLines('quotes');
     const remindersSection = getSectionLines('reminders');
     const goalsSection = getSectionLines('goals');
+    const bookmarksSection = getSectionLines('bookmarks');
+    const contactsSection = getSectionLines('contacts');
 
     const radar = parseRadarSection(radarSection.lines, radarSection.offset, errors, unparsedLines);
     const todo = parseTodoSection(todoSection.lines, todoSection.offset, errors);
-    const quotes = parseQuotesSection(quotesSection.lines);
-    const reminders = parseRemindersSection(remindersSection.lines);
-    const goals = parseGoalsSection(goalsSection.lines);
+    const quotes = parseQuotesSection(quotesSection.lines, quotesSection.offset, errors);
+    const reminders = parseRemindersSection(remindersSection.lines, remindersSection.offset, errors);
+    const goals = parseGoalsSection(goalsSection.lines, goalsSection.offset, errors);
+    const bookmarks = parseBookmarksSection(bookmarksSection.lines);
+    const contacts = parseContactsSection(contactsSection.lines);
 
-    return { radar, todo, quotes, reminders, goals, errors, unparsedLines };
+    return { radar, todo, quotes, reminders, goals, bookmarks, contacts, errors, unparsedLines };
 }
 
 function parseRadarSection(
@@ -286,11 +294,17 @@ export function parseDayTags(str: string): DayOfWeek[] {
     return days;
 }
 
-function parseRemindersSection(lines: string[]): ReminderData {
+function parseRemindersSection(
+    lines: string[],
+    lineOffset: number,
+    errors: ParseError[],
+): ReminderData {
     const meetings: ReminderMeeting[] = [];
     let currentMeeting: ReminderMeeting | null = null;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = lineOffset + i + 1;
         const trimmed = line.trim();
         if (trimmed === '' || trimmed === '# Reminders') { continue; }
 
@@ -336,7 +350,11 @@ function parseRemindersSection(lines: string[]): ReminderData {
     return { meetings };
 }
 
-function parseGoalsSection(lines: string[]): GoalData {
+function parseGoalsSection(
+    lines: string[],
+    lineOffset: number,
+    errors: ParseError[],
+): GoalData {
     const sections: GoalSection[] = [];
     let currentSection: GoalSection | null = null;
     let currentGoal: GoalItem | null = null;
@@ -354,7 +372,9 @@ function parseGoalsSection(lines: string[]): GoalData {
         }
     }
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = lineOffset + i + 1;
         const trimmed = line.trim();
         if (trimmed === '' || trimmed === '# Goals') { continue; }
 
@@ -470,10 +490,148 @@ function parseGoalsSection(lines: string[]): GoalData {
     return { sections };
 }
 
-function parseQuotesSection(lines: string[]): QuoteData {
-    const items: QuoteItem[] = [];
+function parseContactsSection(lines: string[]): ContactData {
+    const groups: ContactGroup[] = [];
+    let currentGroup: ContactGroup | null = null;
+    let currentContact: ContactItem | null = null;
 
     for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed === '# Contacts') { continue; }
+
+        // ## Group heading
+        if (line.startsWith('## ')) {
+            currentContact = null;
+            currentGroup = {
+                kind: 'contactGroup',
+                id: generateId('cg'),
+                name: line.slice(3).trim(),
+                items: [],
+            };
+            groups.push(currentGroup);
+            continue;
+        }
+
+        // - Name (type) — contact entry
+        if (trimmed.startsWith('- ') && currentGroup) {
+            const contactMatch = trimmed.match(/^- (.+?) \(([^)]+)\)\s*$/);
+            if (contactMatch) {
+                currentContact = {
+                    kind: 'contact',
+                    id: generateId('ct'),
+                    name: contactMatch[1].trim(),
+                    contactType: contactMatch[2].trim(),
+                    email: '',
+                    phone: '',
+                    notes: '',
+                };
+                currentGroup.items.push(currentContact);
+                continue;
+            }
+            // - Name without type
+            const nameOnly = trimmed.slice(2).trim();
+            if (nameOnly) {
+                currentContact = {
+                    kind: 'contact',
+                    id: generateId('ct'),
+                    name: nameOnly,
+                    contactType: '',
+                    email: '',
+                    phone: '',
+                    notes: '',
+                };
+                currentGroup.items.push(currentContact);
+                continue;
+            }
+        }
+
+        // 4-space indented fields: Email:, Phone:, Notes:
+        if (line.startsWith('    ') && currentContact) {
+            const fieldLine = line.slice(4).trim();
+            if (fieldLine.startsWith('Email:')) {
+                currentContact.email = fieldLine.slice('Email:'.length).trim();
+                continue;
+            }
+            if (fieldLine.startsWith('Phone:')) {
+                currentContact.phone = fieldLine.slice('Phone:'.length).trim();
+                continue;
+            }
+            if (fieldLine.startsWith('Notes:')) {
+                currentContact.notes = fieldLine.slice('Notes:'.length).trim();
+                continue;
+            }
+            // Continuation of notes (indented line without a Key: prefix)
+            if (currentContact.notes) {
+                currentContact.notes += '\n' + fieldLine;
+            }
+        }
+    }
+
+    return { groups };
+}
+
+function parseBookmarksSection(lines: string[]): BookmarkData {
+    const sections: BookmarkSection[] = [];
+    let currentSection: BookmarkSection | null = null;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed === '# Bookmarks') { continue; }
+
+        // ## Section heading
+        if (line.startsWith('## ')) {
+            currentSection = {
+                kind: 'bookmarkSection',
+                id: generateId('bks'),
+                name: line.slice(3).trim(),
+                items: [],
+            };
+            sections.push(currentSection);
+            continue;
+        }
+
+        // - [Title](URL) bookmark item
+        if (trimmed.startsWith('- ') && currentSection) {
+            const content = trimmed.slice(2).trim();
+
+            // Try markdown link format: [Title](URL)
+            const linkMatch = content.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+            if (linkMatch) {
+                currentSection.items.push({
+                    kind: 'bookmark',
+                    id: generateId('bk'),
+                    title: linkMatch[1].trim(),
+                    url: linkMatch[2].trim(),
+                });
+                continue;
+            }
+
+            // Fallback: bare URL — use URL as title
+            if (content.match(/^https?:\/\//)) {
+                currentSection.items.push({
+                    kind: 'bookmark',
+                    id: generateId('bk'),
+                    title: content,
+                    url: content,
+                });
+                continue;
+            }
+        }
+    }
+
+    return { sections };
+}
+
+function parseQuotesSection(
+    lines: string[],
+    lineOffset: number,
+    errors: ParseError[],
+): QuoteData {
+    const items: QuoteItem[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = lineOffset + i + 1;
         const trimmed = line.trim();
         if (trimmed === '' || trimmed === '# Quotes') { continue; }
 
