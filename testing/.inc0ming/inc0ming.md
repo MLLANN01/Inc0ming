@@ -44,7 +44,7 @@
 
 ## Compliance
 <!-- color: #ffaa33 -->
-- 3/22/26 - SOC 2 audit prep deadline
+- 3/26/26 - SOC 2 audit prep deadline
 - 4/30/26 - Annual penetration test
 - 6/15/26 - GDPR review
 - 12/1/26 - ISO 27001 recertification
@@ -182,6 +182,13 @@
     Phone: 4025562345
     Notes: fehfiefrj
 
+# Notes
+
+## MyNotebook2
+- My Page
+    Created: 3/11/26
+    Updated: 3/11/26
+
 # TODO
 ## Inc0ming
 * [ ] Pro Site Update
@@ -206,12 +213,6 @@
     - Document rollback procedures
     - Test failover scenarios
 * [x] Update team wiki
-## Personal
-* [ ] 2026 Vacation planning
-    - Research destinations
-    - Book flights
-    - Reserve hotel
-* [ ] Schedule annual physical
 ## Follow up
 * [x] POC for new app {radar:hrijfskedl}
     Due: 3/30/26

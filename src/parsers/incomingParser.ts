@@ -6,6 +6,7 @@ import {
     GoalData, GoalSection, GoalItem, GoalMilestone,
     BookmarkData, BookmarkSection,
     ContactData, ContactGroup, ContactItem,
+    NoteData, NoteNotebook, NotePage, NoteTag,
     ParseResult, ParseError, UnparsedLine,
     generateId, resetIdCounter,
 } from '../models/types';
@@ -29,6 +30,7 @@ export function parseIncoming(content: string): ParseResult {
         else if (trimmed === '# Goals') { sectionStarts.push({ name: 'goals', start: i }); }
         else if (trimmed === '# Bookmarks') { sectionStarts.push({ name: 'bookmarks', start: i }); }
         else if (trimmed === '# Contacts') { sectionStarts.push({ name: 'contacts', start: i }); }
+        else if (trimmed === '# Notes') { sectionStarts.push({ name: 'notes', start: i }); }
     }
 
     // Determine section ranges: each section runs from heading+1 to next heading (or EOF)
@@ -48,6 +50,7 @@ export function parseIncoming(content: string): ParseResult {
     const goalsSection = getSectionLines('goals');
     const bookmarksSection = getSectionLines('bookmarks');
     const contactsSection = getSectionLines('contacts');
+    const notesSection = getSectionLines('notes');
 
     const radar = parseRadarSection(radarSection.lines, radarSection.offset, errors, unparsedLines);
     const todo = parseTodoSection(todoSection.lines, todoSection.offset, errors);
@@ -56,8 +59,9 @@ export function parseIncoming(content: string): ParseResult {
     const goals = parseGoalsSection(goalsSection.lines, goalsSection.offset, errors);
     const bookmarks = parseBookmarksSection(bookmarksSection.lines);
     const contacts = parseContactsSection(contactsSection.lines);
+    const notes = parseNotesSection(notesSection.lines);
 
-    return { radar, todo, quotes, reminders, goals, bookmarks, contacts, errors, unparsedLines };
+    return { radar, todo, quotes, reminders, goals, bookmarks, contacts, notes, errors, unparsedLines };
 }
 
 function parseRadarSection(
@@ -658,4 +662,87 @@ function parseQuotesSection(
     }
 
     return { items };
+}
+
+export function slugify(title: string): string {
+    return title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+function parseNoteTags(str: string): NoteTag[] {
+    const tags: NoteTag[] = [];
+    const regex = /\{(radar|goal|todo|note):([^}]+)\}/g;
+    let match;
+    while ((match = regex.exec(str)) !== null) {
+        tags.push({ type: match[1] as NoteTag['type'], target: match[2].trim() });
+    }
+    return tags;
+}
+
+function parseNotesSection(lines: string[]): NoteData {
+    const notebooks: NoteNotebook[] = [];
+    let currentNotebook: NoteNotebook | null = null;
+    let currentPage: NotePage | null = null;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed === '# Notes') { continue; }
+
+        // ## Notebook heading
+        if (line.startsWith('## ')) {
+            currentPage = null;
+            const nbId = generateId('nb');
+            currentNotebook = {
+                kind: 'noteNotebook',
+                id: nbId,
+                name: line.slice(3).trim(),
+                pages: [],
+            };
+            notebooks.push(currentNotebook);
+            continue;
+        }
+
+        // - PageTitle (note page entry, unindented list item)
+        if (trimmed.startsWith('- ') && !line.startsWith('    ') && currentNotebook) {
+            const title = trimmed.slice(2).trim();
+            if (title) {
+                const pageId = generateId('np');
+                currentPage = {
+                    kind: 'notePage',
+                    id: pageId,
+                    title,
+                    slug: slugify(title),
+                    createdAt: '',
+                    updatedAt: '',
+                    tags: [],
+                    notebookId: currentNotebook.id,
+                };
+                currentNotebook.pages.push(currentPage);
+            }
+            continue;
+        }
+
+        // 4-space indented metadata lines
+        if (line.startsWith('    ') && currentPage) {
+            const fieldLine = line.slice(4).trim();
+            if (fieldLine.startsWith('Created:')) {
+                currentPage.createdAt = fieldLine.slice('Created:'.length).trim();
+                continue;
+            }
+            if (fieldLine.startsWith('Updated:')) {
+                currentPage.updatedAt = fieldLine.slice('Updated:'.length).trim();
+                continue;
+            }
+            if (fieldLine.startsWith('Tags:')) {
+                currentPage.tags = parseNoteTags(fieldLine.slice('Tags:'.length).trim());
+                continue;
+            }
+        }
+    }
+
+    return { notebooks };
 }

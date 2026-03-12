@@ -2,7 +2,7 @@
   "name": "inc0ming",
   "displayName": "Inc0ming",
   "description": "Radar + Todo dashboard powered by markdown files",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "publisher": "MLLANN01",
   "icon": "media/icon.png",
   "repository": {
@@ -13,9 +13,11 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
-    "workspaceContains:inc0ming.md"
+    "workspaceContains:.inc0ming/inc0ming.md"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -78,19 +80,7 @@
         "icon": "$(folder-add)",
         "category": "Inc0ming"
       },
-      {
-        "command": "inc0ming.addTodo",
-        "title": "Add Todo",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.addTodoSection",
-        "title": "Add Todo Section",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
+{
         "command": "inc0ming.editItem",
         "title": "Edit",
         "icon": "$(edit)",
@@ -102,55 +92,13 @@
         "icon": "$(trash)",
         "category": "Inc0ming"
       },
-      {
-        "command": "inc0ming.toggleTodo",
-        "title": "Toggle Complete",
-        "icon": "$(check)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.addQuote",
-        "title": "Add Quote",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.editQuote",
-        "title": "Edit Quote",
-        "icon": "$(edit)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.deleteQuote",
-        "title": "Delete Quote",
-        "icon": "$(trash)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.addMeeting",
-        "title": "Add Meeting",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.addPoint",
-        "title": "Add Talking Point",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
+{
         "command": "inc0ming.expandRadarTree",
         "title": "Expand All",
         "icon": "$(expand-all)",
         "category": "Inc0ming"
       },
-      {
-        "command": "inc0ming.checkFile",
-        "title": "Check File",
-        "icon": "$(checklist)",
-        "category": "Inc0ming"
-      },
-      {
+{
         "command": "inc0ming.addContactGroup",
         "title": "Add Contact Group",
         "icon": "$(add)",
@@ -279,20 +227,28 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && node esbuild.config.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "test": "npx mocha --ui tdd ./out/test/**/*.test.js",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@types/node": "^18.0.0",
-    "@types/mocha": "^10.0.0",
+    "@tiptap/core": "^3.20.1",
+    "@tiptap/extension-image": "^3.20.1",
+    "@tiptap/extension-link": "^3.20.1",
+    "@tiptap/extension-task-item": "^3.20.1",
+    "@tiptap/extension-task-list": "^3.20.1",
+    "@tiptap/pm": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
     "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.85.0",
     "@vscode/test-electron": "^2.3.0",
-    "typescript": "^5.3.0",
+    "esbuild": "^0.27.3",
+    "glob": "^10.0.0",
     "mocha": "^10.2.0",
-    "glob": "^10.0.0"
+    "typescript": "^5.3.0"
   }
 }

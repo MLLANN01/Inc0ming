@@ -5,8 +5,7 @@ import { SidebarViewProvider } from './panels/sidebarViewProvider';
 import { RadarTreeProvider } from './panels/radarTreeProvider';
 import { ContactsTreeProvider } from './panels/contactsTreeProvider';
 import { NotificationManager } from './utils/notifications';
-import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection, QuoteItem, ReminderMeeting, ContactGroup, ContactItem } from './models/types';
-import { parseDayTags } from './parsers/incomingParser';
+import { RadarSwimlane, RadarSubGroup, RadarItem, TodoItem, TodoSection } from './models/types';
 import { formatDateMDYY } from './utils/dateUtils';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -127,46 +126,6 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('inc0ming.addTodoSection', async () => {
-            const name = await vscode.window.showInputBox({ prompt: 'Section name' });
-            if (!name) { return; }
-            store.addTodoSection(name);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.addTodo', async (element?: any) => {
-            let sectionId: string | undefined;
-
-            if (element) {
-                const resolved = resolveTreeElement(store, element);
-                if (resolved && resolved.kind === 'todoSection') {
-                    sectionId = resolved.id;
-                }
-            }
-
-            if (!sectionId) {
-                const sections = store.todo.sections;
-                if (sections.length === 0) {
-                    vscode.window.showWarningMessage('Add a section first.');
-                    return;
-                }
-                if (sections.length === 1) {
-                    sectionId = sections[0].id;
-                } else {
-                    const pick = await vscode.window.showQuickPick(
-                        sections.map(s => ({ label: s.name || '(Default)', id: s.id })),
-                        { placeHolder: 'Select section' }
-                    );
-                    if (!pick) { return; }
-                    sectionId = pick.id;
-                }
-            }
-
-            const text = await vscode.window.showInputBox({ prompt: 'Todo text' });
-            if (!text) { return; }
-            store.addTodo(sectionId, text);
-            await store.save();
-        }),
 
         vscode.commands.registerCommand('inc0ming.editItem', async (treeItem?: any) => {
             if (!treeItem) { return; }
@@ -260,13 +219,6 @@ export function activate(context: vscode.ExtensionContext) {
             await store.save();
         }),
 
-        vscode.commands.registerCommand('inc0ming.toggleTodo', async (treeItem?: any) => {
-            if (!treeItem) { return; }
-            const id = treeItem.id;
-            if (id && store.toggleTodo(id)) {
-                await store.save();
-            }
-        }),
 
         vscode.commands.registerCommand('inc0ming.expandRadarTree', async () => {
             const roots = radarTreeProvider.getRootElements();
@@ -275,109 +227,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
-        vscode.commands.registerCommand('inc0ming.addQuote', async () => {
-            const text = await vscode.window.showInputBox({ prompt: 'Quote text' });
-            if (!text) { return; }
-            const attribution = await vscode.window.showInputBox({ prompt: 'Attribution (optional — leave blank for none)' });
-            store.addQuote(text, attribution || undefined);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.editQuote', async (treeItem?: any) => {
-            if (!treeItem) { return; }
-            const quote = store.findQuote(treeItem.id);
-            if (!quote) { return; }
-
-            const text = await vscode.window.showInputBox({
-                prompt: 'Edit quote text',
-                value: quote.text,
-            });
-            if (text === undefined) { return; }
-
-            const attribution = await vscode.window.showInputBox({
-                prompt: 'Edit attribution (leave blank for none)',
-                value: quote.attribution || '',
-            });
-            if (attribution === undefined) { return; }
-
-            store.editQuote(quote.id, text, attribution || undefined);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.addMeeting', async () => {
-            const name = await vscode.window.showInputBox({ prompt: 'Meeting name' });
-            if (!name) { return; }
-            const daysStr = await vscode.window.showInputBox({
-                prompt: 'Days (e.g. Mon, Wed, Fri)',
-                placeHolder: 'Mon, Wed, Fri',
-            });
-            const days = parseDayTags(daysStr || '');
-            store.addMeeting(name, days);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.addPoint', async () => {
-            const meetings = store.reminders.meetings;
-            if (meetings.length === 0) {
-                vscode.window.showWarningMessage('Add a meeting first.');
-                return;
-            }
-            let meetingId: string;
-            if (meetings.length === 1) {
-                meetingId = meetings[0].id;
-            } else {
-                const pick = await vscode.window.showQuickPick(
-                    meetings.map(m => ({
-                        label: m.name + (m.days.length ? ' (' + m.days.join(', ') + ')' : ''),
-                        id: m.id,
-                    })),
-                    { placeHolder: 'Select meeting' }
-                );
-                if (!pick) { return; }
-                meetingId = pick.id;
-            }
-
-            const text = await vscode.window.showInputBox({ prompt: 'Talking point' });
-            if (!text) { return; }
-            store.addPoint(meetingId, text);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.deleteQuote', async (treeItem?: any) => {
-            if (!treeItem) { return; }
-            const quote = store.findQuote(treeItem.id);
-            if (!quote) { return; }
-
-            const displayText = quote.text.length > 40
-                ? quote.text.slice(0, 40) + '...'
-                : quote.text;
-            const confirm = await vscode.window.showWarningMessage(
-                `Delete quote "${displayText}"?`, { modal: true }, 'Delete'
-            );
-            if (confirm !== 'Delete') { return; }
-
-            store.deleteQuote(quote.id);
-            await store.save();
-        }),
-
-        vscode.commands.registerCommand('inc0ming.checkFile', async () => {
-            const result = store.runCheck();
-            const total = result.summary.errors + result.summary.warnings + result.summary.info;
-            if (total === 0) {
-                vscode.window.showInformationMessage('Inc0ming: No issues found in inc0ming.md');
-            } else {
-                const action = await vscode.window.showWarningMessage(
-                    `Inc0ming: Found ${total} issue(s) in inc0ming.md`,
-                    'Show Problems', 'Show File'
-                );
-                if (action === 'Show Problems') {
-                    vscode.commands.executeCommand('workbench.actions.view.problems');
-                } else if (action === 'Show File') {
-                    const doc = await vscode.workspace.openTextDocument(store.filePath);
-                    vscode.window.showTextDocument(doc);
-                }
-            }
-        }),
 
         vscode.commands.registerCommand('inc0ming.addContactGroup', async () => {
             const name = await vscode.window.showInputBox({ prompt: 'Contact group name' });

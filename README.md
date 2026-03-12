@@ -1,6 +1,6 @@
 # Inc0ming
 
-A VS Code extension that turns a simple `inc0ming.md` markdown file into an interactive radar + todo dashboard.
+A VS Code extension that turns a simple markdown file into an interactive radar + todo dashboard.
 
 ![Radar Dashboard](./media/DemoImage1.png)
 
@@ -9,8 +9,9 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 - **Radar Scanner** — Canvas-based radar grid with animated sweep line, swimlane rows, and color-coded blips by urgency (0-30 days, ~90 days, ~180 days). Right-click blips to edit or delete. Hover stacked blips to see all items.
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
-- **Bookmarks** — Resizable grid cards for bookmark link collections, organized by category with search, inline add/edit/delete, and click-to-open
+- **Bookmarks** — Grid cards for bookmark link collections, organized by category with search, inline add/edit/delete, and click-to-open
 - **Contacts Tree View** — Native VS Code tree view in the explorer panel for managing contact groups, contacts, and details (email, phone, notes) with full CRUD via context menus
+- **Notes** — Notebook-based note-taking with a TipTap WYSIWYG editor supporting headings, lists, task lists, code blocks, blockquotes, images (paste/drag-and-drop), and links. Fullscreen editing mode, auto-save, and Ctrl+S manual save.
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
 - **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
 - **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
@@ -19,15 +20,15 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 - **Past Due (Sidebar)** — Overdue todos, goals, milestones, and radar items listed in the sidebar with type badges and days-overdue counts. Click any item to navigate to it in the dashboard.
 - **Archive** — Collapsible dashboard section showing completed todos, completed goals (with completion notes and milestone summaries), and past radar events. Items can be deleted inline.
 - **Cross-View Navigation** — Click sidebar items, past-due entries, or virtual radar blips to jump directly to the source item in the dashboard with a highlight animation
-- **Markdown Powered** — All data lives in `inc0ming.md` at the workspace root. Edit it by hand or through the dashboard — changes sync both ways.
+- **Markdown Powered** — All data lives in `.inc0ming/inc0ming.md`. Edit it by hand or through the dashboard — changes sync both ways. Note content, images, and media are stored alongside in the `.inc0ming/` folder.
 
 ## Getting Started
 
 1. Install the extension
-2. Create an `inc0ming.md` file in your workspace root (or let the extension create one)
+2. Create a `.inc0ming/inc0ming.md` file in your workspace (or let the extension create one)
 3. Click the Inc0ming icon in the activity bar, or run **Inc0ming: Open Dashboard** from the command palette
 
-## inc0ming.md Format
+## .inc0ming/inc0ming.md Format
 
 ```markdown
 # Radar
@@ -96,6 +97,14 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
     Notes: Frontend lead
 - Bob Smith (mentor)
     Email: bob@example.com
+
+# Notes
+
+## General
+- Meeting Prep
+    Created: 3/11/26
+    Updated: 3/11/26
+    Tags: {radar:Work}
 ```
 
 ### Format Reference
@@ -129,6 +138,11 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 | Contact group | `## Name` under `# Contacts` |
 | Contact item | `- Name (type)` under a contact group |
 | Contact detail | `    Email: / Phone: / Notes:` (4 spaces indent) |
+| Notebook | `## Name` under `# Notes` |
+| Note page | `- Title` under a notebook heading |
+| Note metadata | `    Created: / Updated: M/D/YY` (4 spaces indent) |
+| Note tags | `    Tags: {radar:X} {goal:Y}` (4 spaces indent) |
+| Note content | Stored in `.inc0ming/notes/<slug>.md` (GFM) |
 
 ## Configuration
 
@@ -143,13 +157,11 @@ A VS Code extension that turns a simple `inc0ming.md` markdown file into an inte
 All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) under the **Inc0ming** category:
 
 - **Open Dashboard** — Open the main radar + todo dashboard
-- **Refresh** — Reload data from `inc0ming.md`
-- **Add Swim Lane** / **Add Radar Item** / **Add Todo** / **Add Todo Section**
-- **Add Quote** / **Edit Quote** / **Delete Quote**
-- **Add Meeting** / **Add Talking Point**
-- **Add Goal** / **Add Goal Section** / **Add Milestone**
-- **Add Contact Group** / **Add Contact** / **Edit Contact** / **Delete** (contacts)
-- **Edit** / **Delete** / **Toggle Complete**
+- **Refresh** — Reload data from `.inc0ming/inc0ming.md`
+- **Add Swim Lane** / **Add Sub-Group** / **Add Radar Item** — Radar tree view
+- **Add Contact Group** / **Add Contact** / **Edit Contact** / **Delete** — Contacts tree view
+- **Edit** / **Delete** — Context menus on tree view items
+- **Expand All** — Expand all radar tree nodes
 
 ## Building from Source
 

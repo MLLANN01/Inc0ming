@@ -9,10 +9,12 @@ import {
     GoalData, GoalSection, GoalItem, GoalMilestone,
     BookmarkData, BookmarkSection, BookmarkItem,
     ContactData, ContactGroup, ContactItem,
+    NoteData, NoteNotebook, NotePage, NoteTag,
     ParseResult, ParseError, UnparsedLine,
     ValidationIssue, ValidationResult,
     generateId,
 } from '../models/types';
+import { slugify } from '../parsers/incomingParser';
 import { parseIncoming } from '../parsers/incomingParser';
 import { serializeIncoming } from '../serializers/incomingSerializer';
 import { parseDateMDYY, daysUntil, formatDateMDYY } from '../utils/dateUtils';
@@ -27,6 +29,7 @@ export class DataStore implements vscode.Disposable {
     private _goals: GoalData = { sections: [] };
     private _bookmarks: BookmarkData = { sections: [] };
     private _contacts: ContactData = { groups: [] };
+    private _notes: NoteData = { notebooks: [] };
     private _errors: ParseError[] = [];
     private _unparsedLines: UnparsedLine[] = [];
     private _filePath: string;
@@ -42,10 +45,10 @@ export class DataStore implements vscode.Disposable {
     readonly onDidChange = this._onDidChange.event;
 
     constructor(workspaceRoot: string) {
-        this._filePath = path.join(workspaceRoot, 'inc0ming.md');
+        this._filePath = path.join(workspaceRoot, '.inc0ming', 'inc0ming.md');
         this._diagnostics = vscode.languages.createDiagnosticCollection('inc0ming');
 
-        const pattern = new vscode.RelativePattern(workspaceRoot, 'inc0ming.md');
+        const pattern = new vscode.RelativePattern(workspaceRoot, '.inc0ming/inc0ming.md');
         this._watcher = vscode.workspace.createFileSystemWatcher(pattern);
         this._watcher.onDidChange(() => this._onFileChange());
         this._watcher.onDidCreate(() => this._onFileChange());
@@ -60,6 +63,7 @@ export class DataStore implements vscode.Disposable {
     get goals(): GoalData { return this._goals; }
     get bookmarks(): BookmarkData { return this._bookmarks; }
     get contacts(): ContactData { return this._contacts; }
+    get notes(): NoteData { return this._notes; }
     get errors(): ParseError[] { return this._errors; }
     get filePath(): string { return this._filePath; }
 
@@ -1019,6 +1023,164 @@ export class DataStore implements vscode.Disposable {
         return false;
     }
 
+    // --- Note queries ---
+    findNotebook(id: string): NoteNotebook | undefined {
+        return this._notes.notebooks.find(n => n.id === id);
+    }
+
+    findNotePage(id: string): { page: NotePage; notebook: NoteNotebook } | undefined {
+        for (const notebook of this._notes.notebooks) {
+            const page = notebook.pages.find(p => p.id === id);
+            if (page) { return { page, notebook }; }
+        }
+        return undefined;
+    }
+
+    findNotePageBySlug(slug: string): { page: NotePage; notebook: NoteNotebook } | undefined {
+        for (const notebook of this._notes.notebooks) {
+            const page = notebook.pages.find(p => p.slug === slug);
+            if (page) { return { page, notebook }; }
+        }
+        return undefined;
+    }
+
+    private _uniqueSlug(baseSlug: string): string {
+        const existing = new Set<string>();
+        for (const nb of this._notes.notebooks) {
+            for (const p of nb.pages) { existing.add(p.slug); }
+        }
+        if (!existing.has(baseSlug)) { return baseSlug; }
+        let i = 2;
+        while (existing.has(`${baseSlug}-${i}`)) { i++; }
+        return `${baseSlug}-${i}`;
+    }
+
+    // --- Notebook mutations ---
+    addNotebook(name: string): NoteNotebook {
+        const notebook: NoteNotebook = {
+            kind: 'noteNotebook',
+            id: generateId('nb'),
+            name,
+            pages: [],
+        };
+        this._notes.notebooks.push(notebook);
+        return notebook;
+    }
+
+    renameNotebook(id: string, name: string): boolean {
+        const nb = this.findNotebook(id);
+        if (!nb) { return false; }
+        nb.name = name;
+        return true;
+    }
+
+    deleteNotebook(id: string): boolean {
+        const idx = this._notes.notebooks.findIndex(n => n.id === id);
+        if (idx < 0) { return false; }
+        this._notes.notebooks.splice(idx, 1);
+        return true;
+    }
+
+    // --- Note page mutations ---
+    addNotePage(notebookId: string, title: string): NotePage | undefined {
+        const notebook = this.findNotebook(notebookId);
+        if (!notebook) { return undefined; }
+        const now = new Date();
+        const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${String(now.getFullYear()).slice(2)}`;
+        const page: NotePage = {
+            kind: 'notePage',
+            id: generateId('np'),
+            title,
+            slug: this._uniqueSlug(slugify(title)),
+            createdAt: dateStr,
+            updatedAt: dateStr,
+            tags: [],
+            notebookId,
+        };
+        notebook.pages.push(page);
+        return page;
+    }
+
+    editNotePageTitle(id: string, title: string): boolean {
+        const result = this.findNotePage(id);
+        if (!result) { return false; }
+        result.page.title = title;
+        // Don't change slug to avoid breaking file links
+        return true;
+    }
+
+    deleteNotePage(id: string): boolean {
+        for (const notebook of this._notes.notebooks) {
+            const idx = notebook.pages.findIndex(p => p.id === id);
+            if (idx >= 0) { notebook.pages.splice(idx, 1); return true; }
+        }
+        return false;
+    }
+
+    updateNoteTags(id: string, tags: NoteTag[]): boolean {
+        const result = this.findNotePage(id);
+        if (!result) { return false; }
+        result.page.tags = tags;
+        return true;
+    }
+
+    touchNotePage(id: string): void {
+        const result = this.findNotePage(id);
+        if (!result) { return; }
+        const now = new Date();
+        result.page.updatedAt = `${now.getMonth() + 1}/${now.getDate()}/${String(now.getFullYear()).slice(2)}`;
+    }
+
+    // --- Note file I/O ---
+    private get _notesDir(): string {
+        return path.join(path.dirname(this._filePath), 'notes');
+    }
+
+    private get _mediaDir(): string {
+        return path.join(path.dirname(this._filePath), 'media');
+    }
+
+    private _ensureNotesDir(): void {
+        fs.mkdirSync(this._notesDir, { recursive: true });
+    }
+
+    private _ensureMediaDir(): void {
+        fs.mkdirSync(this._mediaDir, { recursive: true });
+    }
+
+    noteFilePath(slug: string): string {
+        return path.join(this._notesDir, `${slug}.md`);
+    }
+
+    loadNoteContent(slug: string): string {
+        const filePath = this.noteFilePath(slug);
+        try {
+            return fs.readFileSync(filePath, 'utf-8');
+        } catch {
+            return '';
+        }
+    }
+
+    saveNoteContent(slug: string, content: string): void {
+        this._ensureNotesDir();
+        fs.writeFileSync(this.noteFilePath(slug), content, 'utf-8');
+    }
+
+    saveNoteImage(data: string, mimeType: string): string {
+        this._ensureMediaDir();
+        const ext = mimeType.split('/')[1] || 'png';
+        const hash = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        const filename = `img_${hash}.${ext}`;
+        const filePath = path.join(this._mediaDir, filename);
+        fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
+        return filePath;
+    }
+
+    deleteNoteImage(filename: string): void {
+        const filePath = path.join(this._mediaDir, filename);
+        try { fs.unlinkSync(filePath); } catch { /* ok if missing */ }
+    }
+
     // --- File I/O ---
     load(): void {
         this._cachedAugmentedRadar = null;
@@ -1048,6 +1210,7 @@ export class DataStore implements vscode.Disposable {
             this._goals = { sections: [] };
             this._bookmarks = { sections: [] };
             this._contacts = { groups: [] };
+            this._notes = { notebooks: [] };
             this._errors = [];
             this._unparsedLines = [];
         }
@@ -1058,7 +1221,7 @@ export class DataStore implements vscode.Disposable {
         this._cachedAugmentedRadar = null;
         this._cachedPastDue = null;
         this._cachedArchive = null;
-        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals, this._bookmarks, this._contacts);
+        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals, this._bookmarks, this._contacts, this._notes);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
         try {
@@ -1087,6 +1250,7 @@ export class DataStore implements vscode.Disposable {
         this._goals = result.goals;
         this._bookmarks = result.bookmarks;
         this._contacts = result.contacts;
+        this._notes = result.notes;
         this._errors = result.errors;
         this._unparsedLines = result.unparsedLines;
         this._updateDiagnostics();

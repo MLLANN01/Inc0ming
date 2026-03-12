@@ -70,6 +70,10 @@
             window.BookmarkRenderer.setData(payload.bookmarks);
         }
 
+        if (window.NotesRenderer && payload.notes) {
+            window.NotesRenderer.setData(payload.notes);
+        }
+
         sweepEnabled = payload.radarVisible;
         applySweepState();
 
@@ -104,6 +108,21 @@
             case 'bookmarksUpdate':
                 if (window.BookmarkRenderer) {
                     window.BookmarkRenderer.setData(msg.data);
+                }
+                break;
+            case 'notesUpdate':
+                if (window.NotesRenderer) {
+                    window.NotesRenderer.setData(msg.data);
+                }
+                break;
+            case 'noteContent':
+                if (window.NotesRenderer) {
+                    window.NotesRenderer.handleNoteContent(msg.slug, msg.content);
+                }
+                break;
+            case 'noteImageUploaded':
+                if (window.NotesRenderer) {
+                    window.NotesRenderer.handleImageUploaded(msg.src);
                 }
                 break;
             case 'layoutUpdate':
@@ -262,6 +281,7 @@
     setupCollapsible('goals-header', 'goals-body');
     setupCollapsible('todo-header', 'todo-body');
     setupCollapsible('bookmarks-header', 'bookmarks-body');
+    setupCollapsible('notes-header', 'notes-body');
     setupCollapsible('archive-header', 'archive-body');
 
     // ====== SINGLE-INPUT SUBMIT PATTERNS ======
@@ -269,6 +289,7 @@
     setupSubmitInput('new-section-input', 'add-section-btn', 'addTodoSection', 'name');
     setupSubmitInput('new-goal-section-input', 'add-goal-section-btn', 'addGoalSection', 'name');
     setupSubmitInput('new-bookmark-section-input', 'add-bookmark-section-btn', 'addBookmarkSection', 'name');
+    setupSubmitInput('new-notebook-input', 'add-notebook-btn', 'addNotebook', 'name');
 
     // ====== QUOTES — multi-input (kept manual) ======
     var newQuoteText = document.getElementById('new-quote-text');

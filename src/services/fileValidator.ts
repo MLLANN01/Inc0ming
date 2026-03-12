@@ -1,9 +1,9 @@
 import { ParseResult, ValidationIssue, ValidationResult } from '../models/types';
 import { parseDateMDYY } from '../utils/dateUtils';
 
-const KNOWN_SECTIONS = ['Radar', 'TODO', 'Quotes', 'Reminders', 'Goals', 'Bookmarks', 'Contacts'];
+const KNOWN_SECTIONS = ['Radar', 'TODO', 'Quotes', 'Reminders', 'Goals', 'Bookmarks', 'Contacts', 'Notes'];
 
-type CurrentTopSection = 'radar' | 'todo' | 'quotes' | 'reminders' | 'goals' | 'bookmarks' | 'contacts' | null;
+type CurrentTopSection = 'radar' | 'todo' | 'quotes' | 'reminders' | 'goals' | 'bookmarks' | 'contacts' | 'notes' | null;
 
 /**
  * Validates an inc0ming.md file for structural and semantic correctness.

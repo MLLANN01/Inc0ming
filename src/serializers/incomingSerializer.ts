@@ -1,4 +1,4 @@
-import { RadarData, TodoData, QuoteData, ReminderData, GoalData, BookmarkData, ContactData, UnparsedLine } from '../models/types';
+import { RadarData, TodoData, QuoteData, ReminderData, GoalData, BookmarkData, ContactData, NoteData, UnparsedLine } from '../models/types';
 import { formatDateMDYY } from '../utils/dateUtils';
 
 export function serializeIncoming(
@@ -10,6 +10,7 @@ export function serializeIncoming(
     goals: GoalData = { sections: [] },
     bookmarks: BookmarkData = { sections: [] },
     contacts: ContactData = { groups: [] },
+    notes: NoteData = { notebooks: [] },
 ): string {
     const parts: string[] = [];
 
@@ -134,6 +135,25 @@ export function serializeIncoming(
                 if (contact.email) { parts.push(`    Email: ${contact.email}`); }
                 if (contact.phone) { parts.push(`    Phone: ${contact.phone}`); }
                 if (contact.notes) { parts.push(`    Notes: ${contact.notes}`); }
+            }
+            parts.push('');
+        }
+    }
+
+    // === Notes Section ===
+    if (notes.notebooks.length > 0) {
+        parts.push('# Notes');
+        parts.push('');
+        for (const notebook of notes.notebooks) {
+            parts.push(`## ${notebook.name}`);
+            for (const page of notebook.pages) {
+                parts.push(`- ${page.title}`);
+                if (page.createdAt) { parts.push(`    Created: ${page.createdAt}`); }
+                if (page.updatedAt) { parts.push(`    Updated: ${page.updatedAt}`); }
+                if (page.tags.length > 0) {
+                    const tagStr = page.tags.map(t => `{${t.type}:${t.target}}`).join(' ');
+                    parts.push(`    Tags: ${tagStr}`);
+                }
             }
             parts.push('');
         }

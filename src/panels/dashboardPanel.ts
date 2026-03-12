@@ -5,6 +5,7 @@ import {
 } from '../models/types';
 import { parseDayTags } from '../parsers/incomingParser';
 import { getNonce } from '../utils/nonce';
+import * as path from 'path';
 import { isVirtual, isVirtualGoal, isVirtualMilestone, isVirtualTodo } from '../utils/virtualItems';
 
 export class DashboardPanel {
@@ -30,7 +31,10 @@ export class DashboardPanel {
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')],
+                localResourceRoots: [
+                    vscode.Uri.joinPath(extensionUri, 'media'),
+                    vscode.Uri.file(path.join(path.dirname(store.filePath), 'media')),
+                ],
             }
         );
 
@@ -92,6 +96,7 @@ export class DashboardPanel {
                 parseErrors,
                 archive: this._store.computeArchive(),
                 bookmarks: this._store.bookmarks,
+                notes: this._store.notes,
             },
         });
     }
@@ -304,11 +309,120 @@ export class DashboardPanel {
             case 'copyBookmarkUrl':
                 vscode.env.clipboard.writeText(msg.url);
                 return; // Read-only action, don't save
+
+            // --- Notes ---
+            case 'addNotebook':
+                this._store.addNotebook(msg.name);
+                break;
+            case 'renameNotebook':
+                this._store.renameNotebook(msg.id, msg.name);
+                break;
+            case 'deleteNotebook': {
+                // Delete all page files and their images before removing the notebook
+                const notebook = this._store.findNotebook(msg.id);
+                if (notebook) {
+                    const fs = require('fs');
+                    for (const pg of notebook.pages) {
+                        this._deleteNoteImages(pg.slug);
+                        try { fs.unlinkSync(this._store.noteFilePath(pg.slug)); } catch { /* ok if missing */ }
+                    }
+                }
+                this._store.deleteNotebook(msg.id);
+                break;
+            }
+            case 'addNotePage': {
+                const page = this._store.addNotePage(msg.notebookId, msg.title);
+                if (page) {
+                    // Create the empty note file
+                    this._store.saveNoteContent(page.slug, `# ${page.title}\n`);
+                }
+                break;
+            }
+            case 'editNotePageTitle':
+                this._store.editNotePageTitle(msg.id, msg.title);
+                break;
+            case 'deleteNotePage': {
+                const result = this._store.findNotePage(msg.id);
+                if (result) {
+                    this._deleteNoteImages(result.page.slug);
+                    const filePath = this._store.noteFilePath(result.page.slug);
+                    try { require('fs').unlinkSync(filePath); } catch { /* ok if missing */ }
+                }
+                this._store.deleteNotePage(msg.id);
+                break;
+            }
+            case 'updateNoteTags':
+                this._store.updateNoteTags(msg.id, msg.tags);
+                break;
+            case 'requestNoteContent': {
+                const content = this._store.loadNoteContent(msg.slug);
+                // Rewrite relative image paths to webview URIs
+                const mediaDir = vscode.Uri.file(
+                    require('path').join(require('path').dirname(this._store.filePath), 'media')
+                );
+                const rewritten = content.replace(
+                    /!\[([^\]]*)\]\(\.\.\/media\/([^)]+)\)/g,
+                    (_match: string, alt: string, filename: string) => {
+                        const uri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(mediaDir, filename));
+                        return `![${alt}](${uri})`;
+                    }
+                );
+                this._panel.webview.postMessage({ type: 'noteContent', slug: msg.slug, content: rewritten });
+                return; // Read-only, don't save
+            }
+            case 'saveNoteContent': {
+                // Rewrite webview URIs back to relative paths
+                const saved = msg.content.replace(
+                    /!\[([^\]]*)\]\(vscode-webview:\/\/[^)]*\/([^/)]+)\)/g,
+                    (_match: string, alt: string, filename: string) => `![${alt}](../media/${filename})`
+                );
+                // Delete images that were removed from the content
+                const oldContent = this._store.loadNoteContent(msg.slug);
+                const imgPattern = /!\[[^\]]*\]\(\.\.\/media\/([^)]+)\)/g;
+                const oldImages = new Set<string>();
+                let m;
+                while ((m = imgPattern.exec(oldContent)) !== null) { oldImages.add(m[1]); }
+                const newImages = new Set<string>();
+                const imgPattern2 = /!\[[^\]]*\]\(\.\.\/media\/([^)]+)\)/g;
+                while ((m = imgPattern2.exec(saved)) !== null) { newImages.add(m[1]); }
+                for (const filename of oldImages) {
+                    if (!newImages.has(filename)) {
+                        this._store.deleteNoteImage(filename);
+                    }
+                }
+                this._store.saveNoteContent(msg.slug, saved);
+                // Update the page's updatedAt timestamp
+                const pageResult = this._store.findNotePageBySlug(msg.slug);
+                if (pageResult) { this._store.touchNotePage(pageResult.page.id); }
+                return; // Don't save index — note content lives in separate file.
+                        // Timestamp will persist on the next index-level save.
+            }
+            case 'uploadNoteImage': {
+                const imagePath = this._store.saveNoteImage(msg.data, msg.mimeType);
+                const imageUri = this._panel.webview.asWebviewUri(vscode.Uri.file(imagePath));
+                this._panel.webview.postMessage({
+                    type: 'noteImageUploaded',
+                    src: imageUri.toString(),
+                    noteSlug: msg.noteSlug,
+                });
+                return; // Don't save index for image uploads
+            }
+
             default:
                 return; // Unknown message, don't save
         }
 
         await this._store.save();
+    }
+
+    /** Delete all images referenced in a note's content file. */
+    private _deleteNoteImages(slug: string): void {
+        const content = this._store.loadNoteContent(slug);
+        const imgPattern = /!\[[^\]]*\]\(\.\.\/media\/([^)]+)\)/g;
+        let m;
+        while ((m = imgPattern.exec(content)) !== null) {
+            this._store.deleteNoteImage(m[1]);
+        }
     }
 
     private _getHtml(): string {
@@ -325,6 +439,8 @@ export class DashboardPanel {
         const goalsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'goalsRenderer.js'));
         const archiveJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'archiveRenderer.js'));
         const bookmarkJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'bookmarkRenderer.js'));
+        const noteEditorJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'noteEditor.js'));
+        const notesJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'notesRenderer.js'));
         const dateUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'dateUtils.js'));
         const editUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'editUtils.js'));
 
@@ -334,7 +450,7 @@ export class DashboardPanel {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource};">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'nonce-${nonce}' 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="${cssUri}" rel="stylesheet">
     <title>Radar Dashboard</title>
@@ -406,7 +522,7 @@ export class DashboardPanel {
         <div id="reminders-container" data-section-key="reminders">
             <div class="section-header collapsible" id="reminders-header">
                 <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> Reminders
+                <span class="collapse-chevron open">\u25bc</span> Meeting Reminders
             </div>
             <div id="reminders-body">
                 <div id="new-meeting-row">
@@ -449,6 +565,49 @@ export class DashboardPanel {
             </div>
         </div>
 
+        <div id="notes-container" data-section-key="notes">
+            <div class="section-header collapsible" id="notes-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron open">\u25bc</span> Notes
+                <span id="notes-count" class="section-count-badge" style="display:none">0</span>
+            </div>
+            <div id="notes-body">
+                <div id="new-notebook-row">
+                    <input type="text" id="new-notebook-input" placeholder="New notebook name...">
+                    <button id="add-notebook-btn">+ Add Notebook</button>
+                </div>
+                <div id="notes-notebook-tabs"></div>
+                <div id="notes-page-list"></div>
+                <div id="notes-editor-area" class="hidden">
+                    <div id="notes-editor-toolbar">
+                        <button data-cmd="back" title="Back to list">\u2190 Back</button>
+                        <span class="toolbar-sep"></span>
+                        <button data-cmd="bold" title="Bold"><b>B</b></button>
+                        <button data-cmd="italic" title="Italic"><i>I</i></button>
+                        <button data-cmd="strike" title="Strikethrough"><s>S</s></button>
+                        <span class="toolbar-sep"></span>
+                        <button data-cmd="h1" title="Heading 1">H1</button>
+                        <button data-cmd="h2" title="Heading 2">H2</button>
+                        <button data-cmd="h3" title="Heading 3">H3</button>
+                        <span class="toolbar-sep"></span>
+                        <button data-cmd="bulletList" title="Bullet list">\u2022</button>
+                        <button data-cmd="orderedList" title="Ordered list">1.</button>
+                        <button data-cmd="taskList" title="Task list">\u2611</button>
+                        <span class="toolbar-sep"></span>
+                        <button data-cmd="codeBlock" title="Code block">&lt;/&gt;</button>
+                        <button data-cmd="blockquote" title="Blockquote">\u201c</button>
+                        <button data-cmd="hr" title="Horizontal rule">\u2015</button>
+                        <button data-cmd="link" title="Insert link">\u{1F517}</button>
+                        <span class="toolbar-sep"></span>
+                        <button data-cmd="save" title="Save (Ctrl+S)" class="toolbar-save-btn">\u{1F4BE} Save</button>
+                        <button data-cmd="fullscreen" title="Toggle fullscreen (Escape to exit)" class="toolbar-fullscreen-btn">\u26F6</button>
+                    </div>
+                    <div id="notes-editor-mount"></div>
+                    <div id="notes-editor-status"><span id="notes-save-indicator"></span></div>
+                </div>
+            </div>
+        </div>
+
         <div id="quotes-manage-container" data-section-key="quotes">
             <div class="section-header collapsible" id="quotes-header">
                 <span class="drag-grip">\u2847</span>
@@ -484,6 +643,8 @@ export class DashboardPanel {
     <script nonce="${nonce}" src="${goalsJsUri}"></script>
     <script nonce="${nonce}" src="${archiveJsUri}"></script>
     <script nonce="${nonce}" src="${bookmarkJsUri}"></script>
+    <script nonce="${nonce}" src="${noteEditorJsUri}"></script>
+    <script nonce="${nonce}" src="${notesJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>

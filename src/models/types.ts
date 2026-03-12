@@ -145,6 +145,34 @@ export interface ContactData {
     groups: ContactGroup[];
 }
 
+// ===== Note Models =====
+export interface NoteTag {
+    type: 'radar' | 'goal' | 'todo' | 'note';
+    target: string;
+}
+
+export interface NotePage {
+    kind: 'notePage';
+    id: string;
+    title: string;
+    slug: string;
+    createdAt: string;      // M/D/YY
+    updatedAt: string;      // M/D/YY
+    tags: NoteTag[];
+    notebookId: string;
+}
+
+export interface NoteNotebook {
+    kind: 'noteNotebook';
+    id: string;
+    name: string;
+    pages: NotePage[];
+}
+
+export interface NoteData {
+    notebooks: NoteNotebook[];
+}
+
 // ===== Todo Models =====
 export interface TodoItem {
     kind: 'todo';
@@ -188,6 +216,7 @@ export interface ParseResult {
     goals: GoalData;
     bookmarks: BookmarkData;
     contacts: ContactData;
+    notes: NoteData;
     errors: ParseError[];
     unparsedLines: UnparsedLine[];
 }
@@ -245,6 +274,9 @@ export type ExtensionMessage =
     | { type: 'remindersUpdate'; data: ReminderData }
     | { type: 'goalsUpdate'; data: GoalData }
     | { type: 'bookmarksUpdate'; data: BookmarkData }
+    | { type: 'notesUpdate'; data: NoteData }
+    | { type: 'noteContent'; slug: string; content: string }
+    | { type: 'noteImageUploaded'; src: string }
     | { type: 'parseErrors'; errors: ParseError[] };
 
 // Webview → Extension
@@ -306,5 +338,15 @@ export type WebviewMessage =
     | { type: 'deleteBookmark'; id: string }
     | { type: 'openBookmark'; url: string }
     | { type: 'copyBookmarkUrl'; url: string }
-    | { type: 'moveBookmark'; id: string; targetSectionId: string; newIndex: number };
+    | { type: 'moveBookmark'; id: string; targetSectionId: string; newIndex: number }
+    | { type: 'addNotebook'; name: string }
+    | { type: 'renameNotebook'; id: string; name: string }
+    | { type: 'deleteNotebook'; id: string }
+    | { type: 'addNotePage'; notebookId: string; title: string }
+    | { type: 'editNotePageTitle'; id: string; title: string }
+    | { type: 'deleteNotePage'; id: string }
+    | { type: 'updateNoteTags'; id: string; tags: NoteTag[] }
+    | { type: 'requestNoteContent'; slug: string }
+    | { type: 'saveNoteContent'; slug: string; content: string }
+    | { type: 'uploadNoteImage'; data: string; mimeType: string; noteSlug: string };
 

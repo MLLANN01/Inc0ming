@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.0] - 2026-03-11
+
+### Added
+- **Notes section** — TipTap WYSIWYG editor with notebooks, pages, and rich content (headings, lists, task lists, code blocks, blockquotes, images, links). Auto-save with 2-second debounce and manual save via Ctrl+S/Cmd+S button.
+- **Fullscreen note editor** — expand button in the toolbar fills the entire dashboard viewport; Escape or click to exit
+- **Image support in notes** — paste or drag-and-drop images into the editor; stored in `.inc0ming/media/`
+- **Image cleanup** — removing an image from a note, deleting a note page, or deleting a notebook automatically deletes orphaned image files from `.inc0ming/media/`
+- **Note search & retrieval** — SKILL.md operations for Read Note Content, Edit Note Content, Search Notes (grep across all note files), and Find Notes by Tag
+- **Contacts tree view** — native VS Code TreeView in the explorer panel for managing contact groups, contacts, and details (email, phone, notes) with full CRUD via context menus
+
+### Changed
+- **Data file relocated** — `inc0ming.md` moved from workspace root to `.inc0ming/inc0ming.md`, keeping all extension data contained in one folder
+- Activation event updated to `workspaceContains:.inc0ming/inc0ming.md`
+- Reminders section renamed to "Meeting Reminders"
+- Removed 10 redundant command palette commands (addTodo, addTodoSection, toggleTodo, addQuote, editQuote, deleteQuote, addMeeting, addPoint, addNotebook, addNotePage) — all handled by the dashboard UI
+- Bookmark cards no longer show non-functional resize handles
+
+### Fixed
+- Notes editor no longer closes unexpectedly during auto-save (save handler no longer triggers full re-render cycle)
+- Notebook/page delete properly cleans up `.md` content files and orphaned images
+- Editor closes correctly when its parent notebook or page is deleted
+- Note page delete button now visible on hover (was using wrong CSS class)
+- Notes section header alignment consistent with other dashboard sections
+
 ## [0.6.2] - 2026-03-11
 
 ### Fixed
