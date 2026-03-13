@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* Reminder Renderer — meeting cards with talking points */
+/* Reminder Renderer — recurring radar items as cards with day badges and sub-item management */
 (function () {
     var currentData = null;
 
@@ -7,236 +7,222 @@
         if (window.DashboardBridge) { window.DashboardBridge.postMessage(msg); }
     }
 
-    function getTodayDayName() {
-        var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        return days[new Date().getDay()];
+    function setData(radarData) {
+        currentData = radarData;
+        render(radarData);
     }
 
-    function setData(data) {
-        currentData = data;
-        render(data);
-    }
-
-    function render(data) {
-        var grid = document.getElementById('reminders-grid');
+    function render(radarData) {
+        var grid = document.getElementById('meeting-notes-grid');
         if (!grid) { return; }
-
-        var savedScroll = grid.scrollLeft;
         grid.innerHTML = '';
 
-        if (!data || !data.meetings || data.meetings.length === 0) { return; }
+        if (!radarData || !radarData.swimlanes) { return; }
 
-        var today = getTodayDayName();
+        var todayName = window.DateUtils.getTodayDayName();
 
-        for (var i = 0; i < data.meetings.length; i++) {
-            (function (meeting) {
-                var isToday = meeting.days.indexOf(today) >= 0;
+        for (var si = 0; si < radarData.swimlanes.length; si++) {
+            var swimlane = radarData.swimlanes[si];
+            var recurringItems = collectRecurringItems(swimlane);
+            if (recurringItems.length === 0) { continue; }
 
-                var card = document.createElement('div');
-                card.className = 'reminder-card' + (isToday ? ' reminder-today' : '');
-
-                // Header
-                var header = document.createElement('div');
-                header.className = 'reminder-card-header';
-
-                var nameSpan = document.createElement('span');
-                nameSpan.className = 'reminder-card-name';
-                nameSpan.textContent = meeting.name;
-
-                // Double-click name to rename
-                nameSpan.addEventListener('dblclick', function (e) {
-                    e.stopPropagation();
-                    var editForm = document.createElement('div');
-                    editForm.className = 'reminder-rename-form';
-
-                    var nameInput = document.createElement('input');
-                    nameInput.type = 'text';
-                    nameInput.className = 'inline-edit';
-                    nameInput.value = meeting.name;
-
-                    var daysInput = document.createElement('input');
-                    daysInput.type = 'text';
-                    daysInput.className = 'inline-edit';
-                    daysInput.value = meeting.days.join(', ');
-                    daysInput.placeholder = 'Days (e.g. Mon, Wed)';
-
-                    function save() {
-                        var newName = nameInput.value.trim();
-                        if (newName) {
-                            postMessage({
-                                type: 'renameMeeting',
-                                id: meeting.id,
-                                name: newName,
-                                days: daysInput.value.trim(),
-                            });
-                        }
-                        editForm.replaceWith(header);
-                    }
-
-                    function cancel() {
-                        editForm.replaceWith(header);
-                    }
-
-                    nameInput.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter') { save(); }
-                        if (e.key === 'Escape') { cancel(); }
-                    });
-                    daysInput.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter') { save(); }
-                        if (e.key === 'Escape') { cancel(); }
-                    });
-                    nameInput.addEventListener('blur', function () {
-                        // Delay to allow click on daysInput
-                        setTimeout(function () {
-                            if (!editForm.contains(document.activeElement)) { save(); }
-                        }, 100);
-                    });
-                    daysInput.addEventListener('blur', function () {
-                        setTimeout(function () {
-                            if (!editForm.contains(document.activeElement)) { save(); }
-                        }, 100);
-                    });
-
-                    editForm.appendChild(nameInput);
-                    editForm.appendChild(daysInput);
-                    header.replaceWith(editForm);
-                    nameInput.focus();
-                    nameInput.select();
-                });
-
-                // Day badges
-                var badgeContainer = document.createElement('div');
-                badgeContainer.className = 'reminder-day-badges';
-                for (var di = 0; di < meeting.days.length; di++) {
-                    var badge = document.createElement('span');
-                    badge.className = 'day-badge' + (meeting.days[di] === today ? ' day-today' : '');
-                    badge.textContent = meeting.days[di];
-                    badgeContainer.appendChild(badge);
-                }
-
-                // Header buttons (hover-reveal)
-                var headerBtns = document.createElement('div');
-                headerBtns.className = 'reminder-header-btns';
-
-                var clearBtn = document.createElement('button');
-                clearBtn.className = 'reminder-clear-btn';
-                clearBtn.textContent = 'Clear All';
-                clearBtn.title = 'Remove all talking points';
-                clearBtn.addEventListener('click', function () {
-                    postMessage({ type: 'clearMeeting', id: meeting.id });
-                });
-
-                var delMeetingBtn = document.createElement('button');
-                delMeetingBtn.className = 'reminder-delete-meeting-btn';
-                delMeetingBtn.textContent = '\u00d7';
-                delMeetingBtn.title = 'Delete meeting';
-                delMeetingBtn.addEventListener('click', function () {
-                    postMessage({ type: 'deleteMeeting', id: meeting.id });
-                });
-
-                headerBtns.appendChild(clearBtn);
-                headerBtns.appendChild(delMeetingBtn);
-
-                header.appendChild(nameSpan);
-                header.appendChild(badgeContainer);
-                header.appendChild(headerBtns);
-                card.appendChild(header);
-
-                // Points list
-                var pointsList = document.createElement('div');
-                pointsList.className = 'reminder-points';
-
-                for (var pi = 0; pi < meeting.points.length; pi++) {
-                    (function (point) {
-                        var pointRow = document.createElement('div');
-                        pointRow.className = 'reminder-point';
-
-                        var bullet = document.createElement('span');
-                        bullet.className = 'reminder-bullet';
-                        bullet.textContent = '\u2022';
-
-                        var textSpan = document.createElement('span');
-                        textSpan.className = 'reminder-point-text';
-                        textSpan.textContent = point.text;
-
-                        // Double-click to edit
-                        textSpan.addEventListener('dblclick', function () {
-                            var input = document.createElement('input');
-                            input.type = 'text';
-                            input.className = 'inline-edit';
-                            input.value = point.text;
-
-                            function save() {
-                                var newText = input.value.trim();
-                                if (newText && newText !== point.text) {
-                                    postMessage({
-                                        type: 'editPoint',
-                                        id: point.id,
-                                        text: newText,
-                                    });
-                                }
-                                input.replaceWith(textSpan);
-                                textSpan.textContent = newText || point.text;
-                            }
-
-                            input.addEventListener('blur', save);
-                            input.addEventListener('keydown', function (e) {
-                                if (e.key === 'Enter') { save(); }
-                                if (e.key === 'Escape') { input.replaceWith(textSpan); }
-                            });
-
-                            textSpan.replaceWith(input);
-                            input.focus();
-                            input.select();
-                        });
-
-                        var delBtn = document.createElement('button');
-                        delBtn.className = 'reminder-point-delete';
-                        delBtn.textContent = '\u00d7';
-                        delBtn.title = 'Delete point';
-                        delBtn.addEventListener('click', function () {
-                            postMessage({ type: 'deletePoint', id: point.id });
-                        });
-
-                        pointRow.appendChild(bullet);
-                        pointRow.appendChild(textSpan);
-                        pointRow.appendChild(delBtn);
-                        pointsList.appendChild(pointRow);
-                    })(meeting.points[pi]);
-                }
-
-                card.appendChild(pointsList);
-
-                // Inline add input (always visible)
-                var addRow = document.createElement('div');
-                addRow.className = 'reminder-add-row';
-
-                var addInput = document.createElement('input');
-                addInput.type = 'text';
-                addInput.className = 'reminder-add-input';
-                addInput.placeholder = 'Add talking point...';
-                addInput.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter') {
-                        var text = addInput.value.trim();
-                        if (text) {
-                            postMessage({
-                                type: 'addPoint',
-                                meetingId: meeting.id,
-                                text: text,
-                            });
-                            addInput.value = '';
-                        }
-                    }
-                });
-
-                addRow.appendChild(addInput);
-                card.appendChild(addRow);
-
+            for (var ri = 0; ri < recurringItems.length; ri++) {
+                var card = createCard(recurringItems[ri], todayName);
                 grid.appendChild(card);
-            })(data.meetings[i]);
+            }
+        }
+    }
+
+    function collectRecurringItems(swimlane) {
+        var items = [];
+        for (var i = 0; i < swimlane.items.length; i++) {
+            if (swimlane.items[i].recurrence) {
+                items.push(swimlane.items[i]);
+            }
+        }
+        for (var s = 0; s < swimlane.subGroups.length; s++) {
+            var sg = swimlane.subGroups[s];
+            for (var j = 0; j < sg.items.length; j++) {
+                if (sg.items[j].recurrence) {
+                    items.push(sg.items[j]);
+                }
+            }
+        }
+        return items;
+    }
+
+    function createCard(item, todayName) {
+        var card = document.createElement('div');
+        card.className = 'meeting-card';
+        card.setAttribute('data-item-id', item.id);
+
+        // Check if this item occurs today
+        var eff = window.DateUtils.effectiveDate(item);
+        if (eff && window.DateUtils.isToday(eff)) {
+            card.classList.add('meeting-card-today');
         }
 
-        requestAnimationFrame(function () { grid.scrollLeft = savedScroll; });
+        // Header
+        var header = document.createElement('div');
+        header.className = 'meeting-card-header';
+
+        var labelSpan = document.createElement('span');
+        labelSpan.className = 'meeting-card-label';
+        labelSpan.textContent = item.label;
+        labelSpan.title = 'Double-click to rename';
+        labelSpan.addEventListener('dblclick', function () {
+            var input = window.EditUtils.createInlineEdit(item.label, function (newLabel) {
+                if (newLabel) {
+                    postMessage({ type: 'editRadarItem', id: item.id, label: newLabel, dateStr: '' });
+                }
+                input.replaceWith(labelSpan);
+            }, function () {
+                input.replaceWith(labelSpan);
+            });
+            labelSpan.replaceWith(input);
+            input.focus();
+            input.select();
+        });
+
+        header.appendChild(labelSpan);
+
+        // Day badges for weekly items
+        if (item.recurrence && item.recurrence.type === 'weekly') {
+            var badges = document.createElement('span');
+            badges.className = 'meeting-day-badges';
+            badges.title = 'Double-click to edit schedule';
+            var days = item.recurrence.days;
+            for (var d = 0; d < days.length; d++) {
+                var badge = document.createElement('span');
+                badge.className = 'day-badge';
+                if (days[d] === todayName) {
+                    badge.classList.add('day-today');
+                }
+                badge.textContent = days[d];
+                badges.appendChild(badge);
+            }
+            badges.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                var currentDays = item.recurrence.days.join(', ');
+                var input = window.EditUtils.createInlineEdit(currentDays, function (newVal) {
+                    if (newVal) {
+                        postMessage({ type: 'editRecurringSchedule', id: item.id, days: newVal });
+                    }
+                    input.replaceWith(badges);
+                }, function () {
+                    input.replaceWith(badges);
+                });
+                badges.replaceWith(input);
+                input.focus();
+                input.select();
+            });
+            header.appendChild(badges);
+        }
+
+        // Yearly badge
+        if (item.recurrence && item.recurrence.type === 'yearly') {
+            var yearlyBadge = document.createElement('span');
+            yearlyBadge.className = 'meeting-yearly-badge';
+            yearlyBadge.textContent = item.recurrence.month + '/' + item.recurrence.day;
+            yearlyBadge.title = 'Double-click to edit schedule';
+            yearlyBadge.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                var currentMD = item.recurrence.month + '/' + item.recurrence.day;
+                var input = window.EditUtils.createInlineEdit(currentMD, function (newVal) {
+                    if (newVal) {
+                        postMessage({ type: 'editRecurringSchedule', id: item.id, monthDay: newVal });
+                    }
+                    input.replaceWith(yearlyBadge);
+                }, function () {
+                    input.replaceWith(yearlyBadge);
+                });
+                yearlyBadge.replaceWith(input);
+                input.focus();
+                input.select();
+            });
+            header.appendChild(yearlyBadge);
+        }
+
+        // Delete button
+        var delBtn = document.createElement('button');
+        delBtn.className = 'meeting-delete-btn';
+        delBtn.textContent = '\u00d7';
+        delBtn.title = 'Delete';
+        delBtn.addEventListener('click', function () {
+            postMessage({ type: 'deleteRadarItem', id: item.id });
+        });
+        header.appendChild(delBtn);
+
+        card.appendChild(header);
+
+        // Sub-items list
+        var subList = document.createElement('div');
+        subList.className = 'meeting-sub-items';
+
+        var subItems = item.subItems || [];
+        for (var si = 0; si < subItems.length; si++) {
+            (function (sub) {
+                var subRow = document.createElement('div');
+                subRow.className = 'meeting-sub-item';
+
+                var bullet = document.createElement('span');
+                bullet.className = 'sub-item-bullet';
+                bullet.textContent = '\u2022';
+
+                var textSpan = document.createElement('span');
+                textSpan.className = 'meeting-sub-item-text';
+                textSpan.textContent = sub.text;
+                textSpan.title = 'Double-click to edit';
+                textSpan.addEventListener('dblclick', function () {
+                    var input = window.EditUtils.createInlineEdit(sub.text, function (newText) {
+                        if (newText) {
+                            postMessage({ type: 'editSubItem', id: sub.id, text: newText });
+                        }
+                        input.replaceWith(textSpan);
+                    }, function () {
+                        input.replaceWith(textSpan);
+                    });
+                    textSpan.replaceWith(input);
+                    input.focus();
+                    input.select();
+                });
+
+                var subDel = document.createElement('button');
+                subDel.className = 'meeting-sub-item-delete';
+                subDel.textContent = '\u00d7';
+                subDel.title = 'Delete sub-item';
+                subDel.addEventListener('click', function () {
+                    postMessage({ type: 'deleteSubItem', id: sub.id });
+                });
+
+                subRow.appendChild(bullet);
+                subRow.appendChild(textSpan);
+                subRow.appendChild(subDel);
+                subList.appendChild(subRow);
+            })(subItems[si]);
+        }
+
+        card.appendChild(subList);
+
+        // Add sub-item row
+        var addRow = document.createElement('div');
+        addRow.className = 'meeting-add-row';
+        var addInput = document.createElement('input');
+        addInput.type = 'text';
+        addInput.placeholder = 'Add agenda item...';
+        addInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                var text = addInput.value.trim();
+                if (text) {
+                    postMessage({ type: 'addSubItem', radarItemId: item.id, text: text });
+                    addInput.value = '';
+                }
+            }
+        });
+        addRow.appendChild(addInput);
+        card.appendChild(addRow);
+
+        return card;
     }
 
     window.ReminderRenderer = { setData: setData };

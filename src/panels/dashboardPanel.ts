@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
 import {
-    RadarData, RadarItem, SerializedRadarData, WebviewMessage,
+    RadarData, RadarItem, RadarRecurrence, SerializedRadarData, WebviewMessage, DayOfWeek,
 } from '../models/types';
-import { parseDayTags } from '../parsers/incomingParser';
 import { getNonce } from '../utils/nonce';
 import * as path from 'path';
 import { isVirtual, isVirtualGoal, isVirtualMilestone, isVirtualTodo } from '../utils/virtualItems';
+import { effectiveDate, isToday } from '../utils/dateUtils';
 
 export class DashboardPanel {
     public static currentPanel: DashboardPanel | undefined;
@@ -87,7 +87,6 @@ export class DashboardPanel {
                 radar,
                 swimlaneNames,
                 quotes: this._store.quotes,
-                reminders: this._store.reminders,
                 goals: this._store.goals,
                 layout,
                 todo: this._store.todo,
@@ -96,6 +95,7 @@ export class DashboardPanel {
                 parseErrors,
                 archive: this._store.computeArchive(),
                 bookmarks: this._store.bookmarks,
+                contacts: this._store.contacts,
                 notes: this._store.notes,
             },
         });
@@ -109,12 +109,19 @@ export class DashboardPanel {
     }
 
     private _serializeRadar(data: RadarData): SerializedRadarData {
-        const serializeItem = (i: RadarItem) => ({
-            ...i,
-            date: i.date.toISOString(),
-            virtual: isVirtual(i.id) ? true : undefined,
-            shape: DashboardPanel._itemShape(i.id),
-        });
+        const serializeItem = (i: RadarItem) => {
+            const eff = effectiveDate(i);
+            return {
+                id: i.id,
+                date: eff ? eff.toISOString() : undefined,
+                label: i.label,
+                virtual: isVirtual(i.id) ? true : undefined,
+                shape: DashboardPanel._itemShape(i.id),
+                recurrence: i.recurrence,
+                subItems: i.subItems.length > 0 ? i.subItems.map(s => ({ id: s.id, text: s.text })) : undefined,
+                isToday: eff ? isToday(eff) : undefined,
+            };
+        };
         return {
             swimlanes: data.swimlanes.map(s => ({
                 ...s,
@@ -153,10 +160,33 @@ export class DashboardPanel {
             case 'addTodo':
                 this._store.addTodo(msg.sectionId, msg.text);
                 break;
-            case 'addRadarItem':
-                success = this._store.addRadarItem(msg.parentId, msg.label, msg.dateStr);
+            case 'addRadarItem': {
+                if (msg.days || msg.monthDay) {
+                    let recurrence: RadarRecurrence | undefined;
+                    if (msg.days) {
+                        const validDays: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        const parts = msg.days.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+                        const days: DayOfWeek[] = [];
+                        for (const part of parts) {
+                            const match = validDays.find(d => d.toLowerCase() === part.toLowerCase());
+                            if (match) { days.push(match); }
+                        }
+                        if (days.length > 0) { recurrence = { type: 'weekly', days }; }
+                    } else if (msg.monthDay) {
+                        const m = msg.monthDay.match(/^(\d{1,2})\/(\d{1,2})$/);
+                        if (m) { recurrence = { type: 'yearly', month: parseInt(m[1], 10), day: parseInt(m[2], 10) }; }
+                    }
+                    if (recurrence) {
+                        success = this._store.addRadarItem(msg.parentId, msg.label, undefined, recurrence);
+                    } else {
+                        success = false;
+                    }
+                } else {
+                    success = this._store.addRadarItem(msg.parentId, msg.label, msg.dateStr);
+                }
                 if (!success) { vscode.window.showErrorMessage('Invalid date format or unknown swimlane.'); }
                 break;
+            }
             case 'addSwimlane':
                 this._store.addSwimlane(msg.name);
                 break;
@@ -205,28 +235,14 @@ export class DashboardPanel {
             case 'deleteQuote':
                 this._store.deleteQuote(msg.id);
                 break;
-            case 'addMeeting':
-                this._store.addMeeting(msg.name, parseDayTags(msg.days));
+            case 'addSubItem':
+                this._store.addSubItem(msg.radarItemId, msg.text);
                 break;
-            case 'renameMeeting': {
-                const days = parseDayTags(msg.days);
-                this._store.renameMeeting(msg.id, msg.name, days);
+            case 'editSubItem':
+                this._store.editSubItem(msg.id, msg.text);
                 break;
-            }
-            case 'deleteMeeting':
-                this._store.deleteMeeting(msg.id);
-                break;
-            case 'addPoint':
-                this._store.addPoint(msg.meetingId, msg.text);
-                break;
-            case 'editPoint':
-                this._store.editPoint(msg.id, msg.text);
-                break;
-            case 'deletePoint':
-                this._store.deletePoint(msg.id);
-                break;
-            case 'clearMeeting':
-                this._store.clearMeeting(msg.id);
+            case 'deleteSubItem':
+                this._store.deleteSubItem(msg.id);
                 break;
             case 'editTodoNotes':
                 this._store.editTodoNotes(msg.id, msg.notes);
@@ -303,6 +319,27 @@ export class DashboardPanel {
             case 'moveBookmark':
                 success = this._store.moveBookmark(msg.id, msg.targetSectionId, msg.newIndex);
                 break;
+
+            // --- Contacts ---
+            case 'addContactGroup':
+                this._store.addContactGroup(msg.name);
+                break;
+            case 'renameContactGroup':
+                this._store.renameContactGroup(msg.id, msg.name);
+                break;
+            case 'deleteContactGroup':
+                this._store.deleteContactGroup(msg.id);
+                break;
+            case 'addContact':
+                this._store.addContact(msg.groupId, msg.name, msg.contactType);
+                break;
+            case 'editContact':
+                this._store.editContact(msg.id, msg.name, msg.contactType, msg.email, msg.phone, msg.notes);
+                break;
+            case 'deleteContact':
+                this._store.deleteContact(msg.id);
+                break;
+
             case 'openBookmark':
                 vscode.env.openExternal(vscode.Uri.parse(msg.url));
                 return; // Read-only action, don't save
@@ -408,6 +445,61 @@ export class DashboardPanel {
                 return; // Don't save index for image uploads
             }
 
+            case 'editRecurringSchedule': {
+                let recurrence: RadarRecurrence | undefined;
+                if (msg.days) {
+                    const validDays: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    const parts = msg.days.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+                    const days: DayOfWeek[] = [];
+                    for (const part of parts) {
+                        const match = validDays.find(d => d.toLowerCase() === part.toLowerCase());
+                        if (match) { days.push(match); }
+                    }
+                    if (days.length > 0) { recurrence = { type: 'weekly', days }; }
+                } else if (msg.monthDay) {
+                    const m = msg.monthDay.match(/^(\d{1,2})\/(\d{1,2})$/);
+                    if (m) { recurrence = { type: 'yearly', month: parseInt(m[1], 10), day: parseInt(m[2], 10) }; }
+                }
+                if (recurrence) {
+                    this._store.editRadarItemRecurrence(msg.id, recurrence);
+                }
+                break;
+            }
+
+            case 'addRecurringItem': {
+                // Find or create a "Meetings" swimlane
+                let meetingsLane = this._store.radar.swimlanes.find(s => s.name.toLowerCase() === 'meetings');
+                if (!meetingsLane) {
+                    this._store.addSwimlane('Meetings');
+                    meetingsLane = this._store.radar.swimlanes.find(s => s.name.toLowerCase() === 'meetings');
+                }
+                if (!meetingsLane) { break; }
+
+                let recurrence: RadarRecurrence | undefined;
+                if (msg.days) {
+                    const validDays: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    const parts = msg.days.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+                    const days: DayOfWeek[] = [];
+                    for (const part of parts) {
+                        const match = validDays.find(d => d.toLowerCase() === part.toLowerCase());
+                        if (match) { days.push(match); }
+                    }
+                    if (days.length > 0) {
+                        recurrence = { type: 'weekly', days };
+                    }
+                } else if (msg.monthDay) {
+                    const m = msg.monthDay.match(/^(\d{1,2})\/(\d{1,2})$/);
+                    if (m) {
+                        recurrence = { type: 'yearly', month: parseInt(m[1], 10), day: parseInt(m[2], 10) };
+                    }
+                }
+
+                if (recurrence) {
+                    this._store.addRadarItem(meetingsLane.id, msg.label, undefined, recurrence);
+                }
+                break;
+            }
+
             default:
                 return; // Unknown message, don't save
         }
@@ -435,12 +527,13 @@ export class DashboardPanel {
         const todoJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'todoRenderer.js'));
         const quoteJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'quoteRenderer.js'));
         const gridJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'gridManager.js'));
-        const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
         const goalsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'goalsRenderer.js'));
         const archiveJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'archiveRenderer.js'));
         const bookmarkJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'bookmarkRenderer.js'));
+        const contactJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'contactRenderer.js'));
         const noteEditorJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'noteEditor.js'));
         const notesJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'notesRenderer.js'));
+        const reminderJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'reminderRenderer.js'));
         const dateUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'dateUtils.js'));
         const editUtilsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaUri, 'editUtils.js'));
 
@@ -499,18 +592,52 @@ export class DashboardPanel {
         </div>
     </div>
 
-    <div id="new-swimlane-row">
-        <input type="text" id="new-swimlane-input" placeholder="New swim lane name..">
-        <button id="add-swimlane-btn">+ Add Lane</button>
-    </div>
-
     <div id="sections-container">
+        <div id="radar-manage-container" data-section-key="radar-manage">
+            <div class="section-header collapsible" id="radar-manage-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron closed">\u25bc</span> Radar
+            </div>
+            <div id="radar-manage-body" class="collapsed">
+                <div id="radar-manage-swimlane-row">
+                    <input type="text" id="new-swimlane-input" placeholder="New swim lane name...">
+                    <button id="add-swimlane-btn">+ Add Lane</button>
+                </div>
+                <div id="radar-manage-add-row">
+                    <select id="radar-add-swimlane"></select>
+                    <input type="text" id="radar-add-label" placeholder="Item label...">
+                    <select id="radar-add-type">
+                        <option value="onetime">Date</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                    <input type="text" id="radar-add-value" placeholder="M/D/YY">
+                    <button id="radar-add-btn">+ Add Item</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="meeting-notes-container" data-section-key="meeting-notes">
+            <div class="section-header collapsible" id="meeting-notes-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron closed">\u25bc</span> Meeting Notes
+            </div>
+            <div id="meeting-notes-body" class="collapsed">
+                <div id="new-meeting-row">
+                    <input type="text" id="new-meeting-label" placeholder="Meeting name...">
+                    <input type="text" id="new-meeting-days" placeholder="Days (Mon, Wed, Fri)">
+                    <button id="add-meeting-btn">+ Add</button>
+                </div>
+                <div id="meeting-notes-grid"></div>
+            </div>
+        </div>
+
         <div id="todo-container" data-section-key="todo">
             <div class="section-header collapsible" id="todo-header">
                 <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> TODO
+                <span class="collapse-chevron closed">\u25bc</span> TODO
             </div>
-            <div id="todo-body">
+            <div id="todo-body" class="collapsed">
                 <div id="new-section-row">
                     <input type="text" id="new-section-input" placeholder="New section name...">
                     <button id="add-section-btn">+ Add Section</button>
@@ -519,27 +646,12 @@ export class DashboardPanel {
             </div>
         </div>
 
-        <div id="reminders-container" data-section-key="reminders">
-            <div class="section-header collapsible" id="reminders-header">
-                <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> Meeting Reminders
-            </div>
-            <div id="reminders-body">
-                <div id="new-meeting-row">
-                    <input type="text" id="new-meeting-name" placeholder="Meeting name...">
-                    <input type="text" id="new-meeting-days" placeholder="Days (e.g. Mon, Wed, Fri)">
-                    <button id="add-meeting-btn">+ Add Meeting</button>
-                </div>
-                <div id="reminders-grid"></div>
-            </div>
-        </div>
-
         <div id="goals-container" data-section-key="goals">
             <div class="section-header collapsible" id="goals-header">
                 <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> Goals
+                <span class="collapse-chevron closed">\u25bc</span> Goals
             </div>
-            <div id="goals-body">
+            <div id="goals-body" class="collapsed">
                 <div id="new-goal-section-row">
                     <input type="text" id="new-goal-section-input" placeholder="New goal category...">
                     <button id="add-goal-section-btn">+ Add Category</button>
@@ -551,9 +663,9 @@ export class DashboardPanel {
         <div id="bookmarks-container" data-section-key="bookmarks">
             <div class="section-header collapsible" id="bookmarks-header">
                 <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> Bookmarks
+                <span class="collapse-chevron closed">\u25bc</span> Bookmarks
             </div>
-            <div id="bookmarks-body">
+            <div id="bookmarks-body" class="collapsed">
                 <div id="bookmarks-search-row">
                     <input type="text" id="bookmarks-search" placeholder="Search bookmarks...">
                 </div>
@@ -568,10 +680,10 @@ export class DashboardPanel {
         <div id="notes-container" data-section-key="notes">
             <div class="section-header collapsible" id="notes-header">
                 <span class="drag-grip">\u2847</span>
-                <span class="collapse-chevron open">\u25bc</span> Notes
+                <span class="collapse-chevron closed">\u25bc</span> Notes
                 <span id="notes-count" class="section-count-badge" style="display:none">0</span>
             </div>
-            <div id="notes-body">
+            <div id="notes-body" class="collapsed">
                 <div id="new-notebook-row">
                     <input type="text" id="new-notebook-input" placeholder="New notebook name...">
                     <button id="add-notebook-btn">+ Add Notebook</button>
@@ -608,6 +720,23 @@ export class DashboardPanel {
             </div>
         </div>
 
+        <div id="contacts-container" data-section-key="contacts">
+            <div class="section-header collapsible" id="contacts-header">
+                <span class="drag-grip">\u2847</span>
+                <span class="collapse-chevron closed">\u25bc</span> Contacts
+            </div>
+            <div id="contacts-body" class="collapsed">
+                <div id="contacts-search-row">
+                    <input type="text" id="contacts-search" placeholder="Search contacts...">
+                </div>
+                <div id="new-contact-group-row">
+                    <input type="text" id="new-contact-group-input" placeholder="New group name...">
+                    <button id="add-contact-group-btn">+ Add Group</button>
+                </div>
+                <div id="contacts-grid"></div>
+            </div>
+        </div>
+
         <div id="quotes-manage-container" data-section-key="quotes">
             <div class="section-header collapsible" id="quotes-header">
                 <span class="drag-grip">\u2847</span>
@@ -639,12 +768,13 @@ export class DashboardPanel {
     <script nonce="${nonce}" src="${radarJsUri}"></script>
     <script nonce="${nonce}" src="${todoJsUri}"></script>
     <script nonce="${nonce}" src="${quoteJsUri}"></script>
-    <script nonce="${nonce}" src="${reminderJsUri}"></script>
     <script nonce="${nonce}" src="${goalsJsUri}"></script>
     <script nonce="${nonce}" src="${archiveJsUri}"></script>
     <script nonce="${nonce}" src="${bookmarkJsUri}"></script>
+    <script nonce="${nonce}" src="${contactJsUri}"></script>
     <script nonce="${nonce}" src="${noteEditorJsUri}"></script>
     <script nonce="${nonce}" src="${notesJsUri}"></script>
+    <script nonce="${nonce}" src="${reminderJsUri}"></script>
     <script nonce="${nonce}" src="${gridJsUri}"></script>
     <script nonce="${nonce}" src="${dashboardJsUri}"></script>
 </body>

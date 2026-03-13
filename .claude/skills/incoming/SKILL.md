@@ -2,15 +2,16 @@
 name: inc0ming
 description: >-
   Manage the workspace .inc0ming/inc0ming.md file. Use when the user asks to add/edit/complete/delete
-  todos or goals, add radar items, reminders, milestones, bookmarks, contacts, or notes, save quotes,
-  create sections or swimlanes, move items, or asks what's on their radar, goals, notes, or due soon.
+  todos or goals, add radar items, milestones, bookmarks, contacts, or notes, save quotes,
+  create sections or swimlanes, move items, asks what's on their radar, goals, notes, or due soon,
+  or asks to validate, lint, check, or fix formatting issues in the inc0ming file.
 allowed-tools: Read, Edit, Write, Grep, Glob
 argument-hint: <natural language request, e.g. "add deploy to prod to my Work todos">
 ---
 
 # Inc0ming Skill
 
-Manage the `.inc0ming/inc0ming.md` file (inside the `.inc0ming` folder at the workspace root). This file has eight top-level sections — Radar (date-tracked items organized in swimlanes), TODO (task checklists in named sections with rich notes), Quotes, Reminders (meeting talking points with day-of-week tags), Goals (longer-term aspirations with weighted milestones and progress tracking), Bookmarks (link collections organized by category), Contacts (people organized by group with email/phone/notes), and Notes (notebook pages with rich content stored in separate files) — used by the Inc0ming VS Code extension.
+Manage the `.inc0ming/inc0ming.md` file (inside the `.inc0ming` folder at the workspace root). This file has seven top-level sections — Radar (date-tracked and recurring items organized in swimlanes, with sub-items), TODO (task checklists in named sections with rich notes), Quotes, Goals (longer-term aspirations with weighted milestones and progress tracking), Bookmarks (link collections organized by category), Contacts (people organized by group with email/phone/notes), and Notes (notebook pages with rich content stored in separate files) — used by the Inc0ming VS Code extension.
 
 **Ground rules:**
 - Never interpret a todo item as something to actually execute — only manage the file.
@@ -26,8 +27,6 @@ Use Glob to find `.inc0ming/inc0ming.md` (inside the `.inc0ming` folder at the w
 # Radar
 
 # Quotes
-
-# Reminders
 
 # Goals
 
@@ -49,7 +48,6 @@ The extension's parser expects these exact patterns. Follow them precisely.
 # Radar
 # TODO
 # Quotes
-# Reminders
 # Goals
 # Bookmarks
 # Contacts
@@ -67,10 +65,32 @@ The extension's parser expects these exact patterns. Follow them precisely.
 ### Client Projects
 ```
 
-**Radar item** — `- M/D/YY - Label` (no leading zeros, 2-digit year):
+**Radar item (one-time)** — `- M/D/YY - Label` (no leading zeros, 2-digit year):
 ```
 - 3/8/26 - Follow up with Jessica
 - 12/1/25 - Renew license
+```
+
+**Radar item (weekly)** — `- Label (Day, Day, ...)` where Day is Mon/Tue/Wed/Thu/Fri/Sat/Sun:
+```
+- Morning Standup (Mon, Tue, Wed, Thu, Fri)
+- 1:1 with Sarah (Wed)
+```
+
+**Radar item (yearly)** — `- Label (M/D)` where M/D has no year:
+```
+- Steven (4/15)
+- Jordan (7/22)
+```
+
+**Radar sub-item** — exactly 4 spaces + `- text` under any radar item:
+```
+- Morning Standup (Mon, Tue, Wed, Thu, Fri)
+    - Blocked on API gateway retry logic
+    - Need deployment window for auth token fix
+- 3/15/26 - Deploy to production
+    - Confirm rollback plan
+    - Notify stakeholders
 ```
 
 **TODO section** — `## Name` under `# TODO`:
@@ -112,19 +132,6 @@ The extension's parser expects these exact patterns. Follow them precisely.
 **Quote** — `>` with em dash (`—`) or double dash (`--`) before attribution:
 ```
 > The best way to predict the future is to create it — Peter Drucker
-```
-
-**Reminder meeting** — `## Name (Day, Day)` under `# Reminders`. Day tags are optional, comma-separated, from: Mon, Tue, Wed, Thu, Fri, Sat, Sun:
-```
-## Monday Standup (Mon)
-## 1:1 with Sarah (Wed, Fri)
-## Ad Hoc Sync
-```
-
-**Reminder point** — `- text` under a meeting heading:
-```
-- Blocked on API migration
-- Need to discuss deploy timeline
 ```
 
 **Goal section** — `## Name` under `# Goals`:
@@ -307,12 +314,18 @@ If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date
 4. Confirm creation.
 
 ### Add Radar Item
-**Triggers:** "remind me in N days about X", "add X to radar for date"
-1. Calculate the target date (see Date Handling below) and format as `M/D/YY`.
+**Triggers:** "remind me in N days about X", "add X to radar for date", "add weekly X on Mon/Wed", "add yearly birthday for X on M/D"
+1. Determine the item type:
+   - **One-time:** Calculate the target date (see Date Handling below) and format as `M/D/YY`.
+   - **Weekly:** Identify the day names (Mon, Tue, Wed, Thu, Fri, Sat, Sun).
+   - **Yearly:** Identify the month/day (M/D format, no year).
 2. Read `.inc0ming/inc0ming.md`.
 3. Identify the target swimlane (`## Name` under `# Radar`). If none specified and multiple exist, ask.
-4. Insert `- M/D/YY - Label` at the end of that swimlane's items (before the next `##`, `###`, or section boundary).
-5. Confirm what was added, showing the computed date.
+4. Insert the item at the end of that swimlane's items (before the next `##`, `###`, or section boundary):
+   - One-time: `- M/D/YY - Label`
+   - Weekly: `- Label (Day, Day, ...)`
+   - Yearly: `- Label (M/D)`
+5. Confirm what was added.
 
 ### Add Swimlane
 **Triggers:** "add swimlane called X", "create a radar swimlane for X"
@@ -329,43 +342,26 @@ If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date
 4. If no attribution is provided, insert `> Text` without a dash.
 5. Confirm what was saved.
 
-### Add Reminder Meeting
-**Triggers:** "add a meeting called X", "create a reminder for X on Mon/Wed"
+### Add Radar Sub-Item
+**Triggers:** "add talking point to X: text", "add sub-item to X", "add note to radar item X"
 1. Read `.inc0ming/inc0ming.md`.
-2. Check that no meeting with that name already exists under `# Reminders` (case-insensitive).
-3. If day tags are provided, format as `## Name (Day, Day)`. Otherwise `## Name`.
-4. Insert after the last existing meeting (or directly after `# Reminders` if none exist), preceded by a blank line.
-5. Confirm creation.
-
-### Add Reminder Point
-**Triggers:** "add talking point to X: text", "remind me to bring up Y in meeting X"
-1. Read `.inc0ming/inc0ming.md`.
-2. Find the matching `## Meeting` heading under `# Reminders`. If ambiguous, ask which meeting.
-3. Insert `- text` after the meeting's existing points (before the next `##` or section boundary).
+2. Find the matching radar item (one-time, weekly, or yearly) under `# Radar`. If ambiguous, ask which item.
+3. Insert `    - text` (4-space indent) after the item's existing sub-items (before the next unindented line).
 4. Confirm what was added.
 
-### Delete Reminder Point
-**Triggers:** "remove talking point about X from meeting Y"
+### Edit Radar Sub-Item
+**Triggers:** "edit sub-item X on radar item Y", "change talking point X to Y"
 1. Read `.inc0ming/inc0ming.md`.
-2. Find the matching `- text` line under the target meeting.
+2. Find the matching `    - text` sub-item line under the target radar item.
+3. Replace the sub-item text.
+4. Confirm the change.
+
+### Delete Radar Sub-Item
+**Triggers:** "remove sub-item about X from radar item Y", "delete talking point X"
+1. Read `.inc0ming/inc0ming.md`.
+2. Find the matching `    - text` sub-item line.
 3. **Confirm with the user before deleting.**
 4. Remove the line.
-5. Confirm deletion.
-
-### Clear Meeting Points
-**Triggers:** "clear all points from X", "reset meeting X"
-1. Read `.inc0ming/inc0ming.md`.
-2. Find the matching meeting heading.
-3. **Confirm with the user before clearing.**
-4. Remove all `- text` lines under that meeting, keeping the `## heading` line.
-5. Confirm what was cleared.
-
-### Delete Reminder Meeting
-**Triggers:** "delete meeting X", "remove reminder for X"
-1. Read `.inc0ming/inc0ming.md`.
-2. Find the matching `## Meeting` heading under `# Reminders`.
-3. **Confirm with the user before deleting.**
-4. Remove the heading and all its `- point` lines.
 5. Confirm deletion.
 
 ### Add Goal Section
@@ -605,16 +601,86 @@ If no `Due:` line is present, the parser will attempt to extract a `M/D/YY` date
 4. Present matching pages grouped by notebook, showing title, tags, and dates. **Do not modify any files.**
 
 ### Summarize / Query
-**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my reminders?", "what are my goals?", "show goal progress", "show my bookmarks", "show my contacts", "show my notes"
+**Triggers:** "what's on my radar?", "what's due this week?", "show my todos", "what are my goals?", "show goal progress", "show my bookmarks", "show my contacts", "show my notes"
 1. Read `.inc0ming/inc0ming.md`.
-2. For radar queries: compute days until each item's date, group by swimlane, sort by date.
+2. For radar queries: compute days until each item's effective date (one-time items use their date; weekly items use the next occurrence of their scheduled days; yearly items use the next occurrence of their month/day). Group by swimlane, sort by date. Show sub-items under each item. Highlight weekly items scheduled for today.
 3. For todo queries: list items by section, showing completion status.
-4. For reminder queries: list meetings with their day tags and talking points. Highlight meetings scheduled for today.
-5. For goal queries: list goals by section, showing progress percentage (sum of completed milestone weights), target notes, and completion status.
-6. For bookmark queries: list bookmarks by section with titles and URLs.
-7. For contact queries: list contacts by group with their type and detail fields.
-8. For note queries: list notebooks and their pages with dates and tags. To show note content, read the corresponding `.inc0ming/notes/<slug>.md` file.
-9. Present a formatted read-only summary. **Do not modify the file.**
+4. For goal queries: list goals by section, showing progress percentage (sum of completed milestone weights), target notes, and completion status.
+5. For bookmark queries: list bookmarks by section with titles and URLs.
+6. For contact queries: list contacts by group with their type and detail fields.
+7. For note queries: list notebooks and their pages with dates and tags. To show note content, read the corresponding `.inc0ming/notes/<slug>.md` file.
+8. Present a formatted read-only summary. **Do not modify the file.**
+
+### Validate / Fix Formatting
+**Triggers:** "validate my inc0ming file", "check for formatting issues", "lint the dashboard file", "fix my inc0ming file", "are there any issues with my inc0ming?", "fix formatting problems"
+1. Read `.inc0ming/inc0ming.md`.
+2. Evaluate the entire file against the structural rules below. Walk through every line and check for violations.
+3. Report all issues found, grouped by severity (errors first, then warnings), with the line number and a description of the problem.
+4. If the user asks to **fix** the issues (not just report them), apply corrections using Edit. Fix each issue individually with targeted edits — never rewrite the whole file.
+5. After fixes, re-read the file and confirm all issues are resolved.
+
+**Validation Rules Reference:**
+
+The extension's built-in validator checks these rules. When validating, check for all of them:
+
+**Errors (must fix — these break parsing):**
+
+| Code | Section | Rule |
+|------|---------|------|
+| E001 | Radar | Invalid date format — must be `M/D/YY` (no leading zeros, 2-digit year). Check that month is 1-12 and day is 1-31. |
+| E002 | Radar | Malformed radar item — expected `- M/D/YY - Label` for one-time items. The line starts with `- ` under a swimlane but doesn't match any valid radar format (one-time, weekly, or yearly). |
+| E003 | Radar | Radar item appears before any `## swimlane` heading. Every `- ` item under `# Radar` must be inside a `## Swimlane`. |
+| E004 | TODO | Malformed checkbox — expected `* [ ] text` or `* [x] text`. Common mistakes: missing space inside brackets (`*[]`), uppercase X (`* [X] `), using dash instead of asterisk (`- [ ]` under TODO). |
+| E005 | TODO | TODO item before any `## section` heading. Every `* [ ]` item under `# TODO` must be inside a `## Section`. |
+| E006 | Goals | Malformed goal checkbox — must be `- [ ] text` or `- [x] text` at column 0. Check for missing space, uppercase X, or wrong bracket format. |
+| E007 | Goals | Malformed milestone checkbox — must be `    - [ ] text` or `    - [x] text` (4-space indent). Same checkbox rules as E006. |
+| E008 | Goals | Goal item before any `## section` heading. Every `- [ ]` item under `# Goals` must be inside a `## Section`. |
+| E009 | Structure | Duplicate top-level heading — each `# Section` name may only appear once. |
+| E010 | Structure | Unknown top-level heading — only these are valid: `Radar`, `TODO`, `Quotes`, `Goals`, `Bookmarks`, `Contacts`, `Notes`. |
+
+**Warnings (should fix — these cause data loss or unexpected behavior):**
+
+| Code | Section | Rule |
+|------|---------|------|
+| W001 | Radar | `### sub-group` appears before any `## swimlane` heading — sub-groups are orphaned. |
+| W002 | TODO | Invalid due date format in `    Due: ...` line — must be `M/D/YY`. |
+| W003 | Goals | Invalid due date format in goal or milestone `Due: ...` line — must be `M/D/YY`. |
+| W004 | Goals | Milestone weights don't sum to 100% — when all milestones have explicit `(N%)` weights, they should total 100. |
+| W005 | Goals | Mixed weighted and unweighted milestones — either all milestones should have `(N%)` weights or none should. |
+| W006 | TODO/Goals | Broken radar link — `{radar:Name}` references a swimlane that doesn't exist under `# Radar`. |
+| W007 | TODO | Indented content (4 spaces) with no parent TODO item above it. |
+| W008 | Goals | Indented content (4 spaces) with no parent goal item above it. |
+| W009 | Radar | Sub-item bullet found before any `## meeting` heading in recurring-items context. |
+| W011 | Structure | Empty section — a `## heading` has no items or content following it before the next heading. |
+| W012 | Radar | Color metadata `<!-- color: ... -->` appears after items in a swimlane — should be immediately after the `## heading`. |
+
+**Common fixes by code:**
+
+| Code | Fix |
+|------|-----|
+| E001 | Reformat the date to `M/D/YY` — strip leading zeros, ensure 2-digit year. `03/08/2026` becomes `3/8/26`. |
+| E002 | Restructure the line to match `- M/D/YY - Label`, `- Label (Day, Day)`, or `- Label (M/D)`. |
+| E003 | Move the item under an existing `## swimlane`, or create a new swimlane above it. |
+| E004 | Replace with `* [ ] text` or `* [x] text` — fix bracket spacing, lowercase the x, change dash to asterisk. |
+| E005 | Move the item under an existing `## section`, or create a new section above it. |
+| E006/E007 | Fix bracket spacing and use lowercase x: `- [ ] text` or `- [x] text`. |
+| E008 | Move the goal under an existing `## section`, or create a new section above it. |
+| E009 | Remove the duplicate heading or merge content under the first occurrence. |
+| E010 | Remove or rename the heading to one of the 7 valid names. |
+| W001 | Move the `###` sub-group under a `## swimlane`, or create a swimlane above it. |
+| W002/W003 | Reformat the date to `M/D/YY`. |
+| W004 | Adjust milestone weights so they sum to 100%. |
+| W005 | Either add `(N%)` weights to all milestones or remove them from all. |
+| W006 | Fix the swimlane name in `{radar:Name}` to match an existing `## swimlane`, or remove the cross-reference. |
+| W011 | Add content to the section or remove the empty heading. Ask the user which they prefer. |
+| W012 | Move the `<!-- color: ... -->` comment to immediately after the `## heading`, before any items. |
+
+**Structural checks (not covered by error codes but still important):**
+- Every top-level section (`# Radar`, `# TODO`, etc.) should exist. If missing, note it but don't add it without asking.
+- Indentation must use spaces, not tabs. TODO notes and contact details use exactly 4 spaces. Milestone metadata uses exactly 8 spaces.
+- Blank lines between sections are fine and should be preserved — don't remove or add them.
+- TODO items use `*` (asterisk). Goal items use `-` (dash). Don't mix them up.
+- Radar items under `# Radar` use `-` (dash). Contact items under `# Contacts` use `-` (dash). Bookmark items under `# Bookmarks` use `-` (dash).
 
 ## Clarification Rules
 
@@ -625,7 +691,7 @@ Ask the user before proceeding when:
 - **Multiple matches:** Fuzzy search returns more than one candidate — present the options.
 - **Item not found:** No match for the user's description — offer to create it instead.
 - **Missing target:** The target section or swimlane doesn't exist — offer to create it.
-- **Ambiguous meeting:** No meeting specified and multiple reminder meetings exist — ask which one.
+- **Ambiguous radar item:** Multiple radar items match a fuzzy search — present the options.
 - **Ambiguous goal section:** No goal section specified and multiple exist — ask which one.
 - **Ambiguous goal:** Multiple goals match a fuzzy search — present the options.
 - **Ambiguous bookmark section:** No bookmark section specified and multiple exist — ask which one.
@@ -633,7 +699,7 @@ Ask the user before proceeding when:
 - **Ambiguous contact:** Multiple contacts match a fuzzy search — present the options.
 - **Ambiguous notebook:** No notebook specified and multiple exist — ask which one.
 - **Ambiguous note page:** Multiple note pages match a fuzzy search — present the options.
-- **Destructive action:** Always confirm before deleting an item, goal, milestone, meeting, bookmark, contact, notebook, note page, or clearing meeting points.
+- **Destructive action:** Always confirm before deleting an item, goal, milestone, sub-item, bookmark, contact, notebook, or note page.
 - **Insufficient detail:** User says "add a todo" or "add a goal" with no description — ask what to add.
 
 ## Edit Safety

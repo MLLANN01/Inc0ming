@@ -29318,23 +29318,57 @@ ${nextLine.slice(indentLevel + 2)}`;
   };
 
   // media/noteEditor.src.js
-  var serializer = new MarkdownSerializer(
-    {
-      ...defaultMarkdownSerializer.nodes,
-      taskList(state, node) {
-        state.renderList(node, "  ", () => "");
-      },
-      taskItem(state, node) {
-        const checked = node.attrs.checked ? "[x]" : "[ ]";
-        state.write(`- ${checked} `);
-        state.renderContent(node);
-      },
-      image(state, node) {
-        state.write(`![${state.esc(node.attrs.alt || "")}](${node.attrs.src})`);
-      }
+  var baseNodes = {
+    ...defaultMarkdownSerializer.nodes,
+    taskList(state, node) {
+      state.renderList(node, "  ", () => "");
     },
-    defaultMarkdownSerializer.marks
-  );
+    taskItem(state, node) {
+      const checked = node.attrs.checked ? "[x]" : "[ ]";
+      state.write(`- ${checked} `);
+      state.renderContent(node);
+    },
+    image(state, node) {
+      state.write(`![${state.esc(node.attrs.alt || "")}](${node.attrs.src})`);
+    }
+  };
+  var camelAliases = {
+    bulletList: "bullet_list",
+    orderedList: "ordered_list",
+    listItem: "list_item",
+    codeBlock: "code_block",
+    hardBreak: "hard_break",
+    horizontalRule: "horizontal_rule"
+  };
+  for (const [camel, snake] of Object.entries(camelAliases)) {
+    if (baseNodes[snake] && !baseNodes[camel]) {
+      baseNodes[camel] = baseNodes[snake];
+    }
+  }
+  var serializer = new MarkdownSerializer(baseNodes, defaultMarkdownSerializer.marks);
+  var pmToTiptap = {
+    bullet_list: "bulletList",
+    ordered_list: "orderedList",
+    list_item: "listItem",
+    code_block: "codeBlock",
+    hard_break: "hardBreak",
+    horizontal_rule: "horizontalRule",
+    task_list: "taskList",
+    task_item: "taskItem"
+  };
+  function remapNodeTypes(json, map3) {
+    if (!json || typeof json !== "object") {
+      return json;
+    }
+    const out = { ...json };
+    if (out.type && map3[out.type]) {
+      out.type = map3[out.type];
+    }
+    if (Array.isArray(out.content)) {
+      out.content = out.content.map((c) => remapNodeTypes(c, map3));
+    }
+    return out;
+  }
   var editor = null;
   var nonce = "";
   function init2(element, nonceValue) {
@@ -29418,7 +29452,8 @@ ${nextLine.slice(indentLevel + 2)}`;
     }
     try {
       const doc3 = defaultMarkdownParser.parse(markdown || "");
-      editor.commands.setContent(doc3.toJSON());
+      const json = remapNodeTypes(doc3.toJSON(), pmToTiptap);
+      editor.commands.setContent(json);
     } catch (e) {
       editor.commands.setContent(markdown || "");
     }

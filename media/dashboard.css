@@ -578,19 +578,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ====== DRAG-SCROLL ON HORIZONTAL CONTAINERS ====== */
-#reminders-grid.drag-scrolling,
 #goals-grid.drag-scrolling {
     cursor: grabbing;
     user-select: none;
 }
 
-/* New swimlane input */
-#new-swimlane-row {
-    padding: 0 20px 12px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
+/* (swimlane row moved into radar-manage section) */
 
 #new-swimlane-input {
     flex: 1;
@@ -1028,16 +1021,96 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     border-color: var(--cyan-dim);
 }
 
-/* ====== REMINDERS ====== */
-#reminders-container {
+/* ====== RADAR MANAGE ====== */
+#radar-manage-container {
     padding: 0 20px 16px;
 }
 
-#reminders-header {
+#radar-manage-header {
     text-align: left;
 }
 
-#reminders-body.collapsed {
+#radar-manage-body.collapsed {
+    display: none;
+}
+
+#radar-manage-swimlane-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#radar-manage-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+#radar-manage-add-row select,
+#radar-manage-add-row input {
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#radar-manage-add-row select:focus,
+#radar-manage-add-row input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#radar-add-swimlane {
+    min-width: 120px;
+}
+
+#radar-add-label {
+    flex: 1;
+    min-width: 100px;
+}
+
+#radar-add-type {
+    width: 90px;
+}
+
+#radar-add-value {
+    width: 120px;
+}
+
+#radar-add-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#radar-add-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+/* ====== MEETING NOTES ====== */
+#meeting-notes-container {
+    padding: 0 20px 16px;
+}
+
+#meeting-notes-header {
+    text-align: left;
+}
+
+#meeting-notes-body.collapsed {
     display: none;
 }
 
@@ -1048,8 +1121,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     margin-bottom: 12px;
 }
 
-#new-meeting-name {
-    flex: 2;
+#new-meeting-label {
+    flex: 1;
     padding: 6px 10px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1059,7 +1132,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     font-style: italic;
 }
 
-#new-meeting-name:focus {
+#new-meeting-label:focus {
     outline: none;
     border-color: var(--cyan-dim);
     color: var(--text);
@@ -1067,7 +1140,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 #new-meeting-days {
-    flex: 1;
+    width: 180px;
     padding: 6px 10px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1100,7 +1173,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     border-color: var(--cyan-dim);
 }
 
-#reminders-grid {
+#meeting-notes-grid {
     display: flex;
     gap: 12px;
     overflow-x: auto;
@@ -1109,49 +1182,243 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     scrollbar-width: none;
 }
 
-#reminders-grid::-webkit-scrollbar {
+#meeting-notes-grid::-webkit-scrollbar {
     display: none;
 }
 
-.reminder-card {
-    flex: 0 0 240px;
+.meeting-card {
+    flex: 0 0 260px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px;
     display: flex;
     flex-direction: column;
-    position: relative;
 }
 
-.reminder-card.reminder-today {
+.meeting-card-today {
     border-color: var(--cyan);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 30%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--cyan) 25%, transparent);
 }
 
-.reminder-card-header {
+.meeting-card-header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 8px;
-    flex-wrap: wrap;
 }
 
-.reminder-card-name {
+.meeting-card-label {
     color: var(--text-bright);
     font-size: 13px;
     font-weight: 600;
     cursor: default;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.reminder-card-name:hover {
+.meeting-card-label:hover {
     color: var(--cyan);
 }
 
-.reminder-day-badges {
+.meeting-day-badges {
+    display: inline-flex;
+    gap: 3px;
+    flex-shrink: 0;
+    cursor: default;
+}
+
+.meeting-yearly-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--bg-deep);
+    color: var(--text-dim);
+    flex-shrink: 0;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.meeting-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.meeting-card:hover .meeting-delete-btn {
+    opacity: 1;
+}
+
+.meeting-delete-btn:hover {
+    color: var(--urgent);
+}
+
+.meeting-sub-items {
     display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.meeting-sub-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 0;
+}
+
+.meeting-sub-item .sub-item-bullet {
+    color: var(--cyan-dim);
+    flex-shrink: 0;
+}
+
+.meeting-sub-item-text {
+    flex: 1;
+    color: var(--text);
+    cursor: default;
+}
+
+.meeting-sub-item-text:hover {
+    color: var(--text-bright);
+}
+
+.meeting-sub-item-delete {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.meeting-sub-item:hover .meeting-sub-item-delete {
+    opacity: 1;
+}
+
+.meeting-sub-item-delete:hover {
+    color: var(--urgent);
+}
+
+.meeting-add-row {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+.meeting-add-row input {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.meeting-add-row input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.meeting-add-row input::placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+/* ====== RADAR SUB-ITEMS & BADGES ====== */
+.radar-sub-items {
+    list-style: none;
+    margin: 4px 0 0 16px;
+    padding: 0;
+}
+
+.radar-sub-items li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 0;
+}
+
+.radar-sub-items .sub-item-bullet {
+    color: var(--cyan-dim);
+    flex-shrink: 0;
+}
+
+.radar-sub-items .sub-item-text {
+    flex: 1;
+    color: var(--text);
+    cursor: default;
+}
+
+.radar-sub-items .sub-item-text:hover {
+    color: var(--text-bright);
+}
+
+.radar-sub-items .sub-item-delete {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.radar-sub-items li:hover .sub-item-delete {
+    opacity: 1;
+}
+
+.radar-sub-items .sub-item-delete:hover {
+    color: var(--urgent);
+}
+
+.radar-sub-item-add {
+    margin-top: 4px;
+    margin-left: 16px;
+}
+
+.radar-sub-item-add input {
+    width: 160px;
+    padding: 3px 6px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.radar-sub-item-add input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.radar-sub-item-add input::placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.radar-item-badges {
+    display: inline-flex;
     gap: 4px;
     flex-wrap: wrap;
+    margin-left: 6px;
 }
 
 .day-badge {
@@ -1170,132 +1437,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     font-weight: 600;
 }
 
-.reminder-header-btns {
-    display: flex;
-    gap: 4px;
-    margin-left: auto;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.reminder-card:hover .reminder-header-btns {
-    opacity: 1;
-}
-
-.reminder-clear-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-}
-
-.reminder-clear-btn:hover {
-    color: var(--warning);
-    border-color: var(--warning);
-}
-
-.reminder-delete-meeting-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0 2px;
-    line-height: 1;
-}
-
-.reminder-delete-meeting-btn:hover {
-    color: var(--urgent);
-}
-
-.reminder-points {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 1;
-}
-
-.reminder-point {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 12px;
-    padding: 2px 0;
-}
-
-.reminder-bullet {
-    color: var(--cyan-dim);
-    flex-shrink: 0;
-}
-
-.reminder-point-text {
-    flex: 1;
-    color: var(--text);
-    cursor: default;
-}
-
-.reminder-point-text:hover {
-    color: var(--text-bright);
-}
-
-.reminder-point-delete {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0 2px;
-    opacity: 0;
-    transition: opacity 0.15s;
-    flex-shrink: 0;
-}
-
-.reminder-point:hover .reminder-point-delete {
-    opacity: 1;
-}
-
-.reminder-point-delete:hover {
-    color: var(--urgent);
-}
-
-.reminder-add-row {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-}
-
-.reminder-add-input {
-    width: 100%;
-    padding: 4px 8px;
-    background: var(--bg-deep);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.reminder-add-input:focus {
-    outline: none;
-    border-color: var(--cyan-dim);
-}
-
-.reminder-add-input::placeholder {
-    color: var(--text-dim);
-    font-style: italic;
-}
-
-.reminder-rename-form {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
-}
-
-.reminder-rename-form .inline-edit {
-    font-size: 12px;
+.radar-item-today {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--cyan) 25%, transparent);
 }
 
 /* ====== GOALS ====== */
@@ -2239,6 +2383,238 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .bookmark-add-form button.cancel-btn {
+    color: var(--text-dim);
+}
+
+/* ====== CONTACTS ====== */
+#contacts-container {
+    padding: 0 20px 16px;
+}
+
+#contacts-header {
+    text-align: left;
+}
+
+#contacts-body.collapsed {
+    display: none;
+}
+
+#contacts-search-row {
+    margin-bottom: 8px;
+}
+
+#contacts-search {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+#contacts-search:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+#contacts-search::placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+#new-contact-group-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#new-contact-group-input {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#new-contact-group-input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    font-style: normal;
+}
+
+#add-contact-group-btn {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#add-contact-group-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+#contacts-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+}
+
+.contact-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.15s;
+}
+
+.contact-item:hover {
+    background: var(--surface-light);
+}
+
+.contact-name {
+    font-weight: 500;
+    color: var(--text-bright);
+}
+
+.contact-type-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+}
+
+.contact-details {
+    width: 100%;
+    padding-left: 2px;
+}
+
+.contact-detail-line {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 1px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contact-detail-label {
+    color: var(--text-dim);
+    opacity: 0.7;
+}
+
+.contact-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.contact-item:hover .contact-action-btn {
+    opacity: 1;
+}
+
+.contact-edit-btn:hover {
+    color: var(--cyan);
+}
+
+.contact-action-btn.close-btn:hover {
+    color: var(--urgent);
+}
+
+.contact-inline-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 6px;
+}
+
+.contact-inline-edit input {
+    width: 100%;
+}
+
+.contact-inline-edit button {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.contact-inline-edit button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.contact-inline-edit button.cancel-btn {
+    color: var(--text-dim);
+}
+
+.contact-add-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 10px;
+    margin-top: 4px;
+}
+
+.contact-add-form.hidden { display: none; }
+
+.contact-add-form input {
+    flex: 1;
+    min-width: 80px;
+    padding: 4px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.contact-add-form input:focus {
+    outline: none;
+    border-color: var(--cyan-dim);
+}
+
+.contact-add-form button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--cyan);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.contact-add-form button:hover {
+    background: var(--surface-light);
+    border-color: var(--cyan-dim);
+}
+
+.contact-add-form button.cancel-btn {
     color: var(--text-dim);
 }
 

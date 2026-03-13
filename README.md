@@ -10,13 +10,12 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 - **Swimlane Details** — Expandable cards for each swimlane with sub-groups, drag-to-reorder, and inline add/edit/delete
 - **TODO Grid** — Resizable, draggable widget cards per section with checkbox items, drag-and-drop between sections, and inline editing
 - **Bookmarks** — Grid cards for bookmark link collections, organized by category with search, inline add/edit/delete, and click-to-open
-- **Contacts Tree View** — Native VS Code tree view in the explorer panel for managing contact groups, contacts, and details (email, phone, notes) with full CRUD via context menus
+- **Contacts** — Dashboard grid widgets for contact groups with inline add/edit/delete, type badges, detail lines (email, phone, notes), and search filtering across all groups
 - **Notes** — Notebook-based note-taking with a TipTap WYSIWYG editor supporting headings, lists, task lists, code blocks, blockquotes, images (paste/drag-and-drop), and links. Fullscreen editing mode, auto-save, and Ctrl+S manual save.
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
 - **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
-- **Reminders** — Meeting talking points with day-of-week tags. Cards highlight when scheduled for today, with inline add/edit/delete for points.
+- **Recurring Radar Items** — Weekly (`- Label (Mon, Wed)`) and yearly (`- Label (4/15)`) recurrence on radar items, with sub-items for talking points. Weekly items highlight on scheduled days.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
-- **Radar Tree View** — Hierarchical sidebar view of all radar items organized by swimlane and sub-group, with urgency-colored icons and inline edit/delete
 - **Past Due (Sidebar)** — Overdue todos, goals, milestones, and radar items listed in the sidebar with type badges and days-overdue counts. Click any item to navigate to it in the dashboard.
 - **Archive** — Collapsible dashboard section showing completed todos, completed goals (with completion notes and milestone summaries), and past radar events. Items can be deleted inline.
 - **Cross-View Navigation** — Click sidebar items, past-due entries, or virtual radar blips to jump directly to the source item in the dashboard with a highlight animation
@@ -35,8 +34,22 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 
 ## Work
 - 3/15/26 - Deploy to production
+    - Confirm rollback plan
+    - Notify stakeholders
 ### Backend
 - 4/1/26 - API migration
+
+## Meetings
+- Morning Standup (Mon, Tue, Wed, Thu, Fri)
+    - Blocked on API migration
+    - Need to discuss deploy timeline
+- 1:1 with Sarah (Wed, Fri)
+    - Ask about promotion timeline
+
+## Birthdays
+<!-- color: #ff6b6b -->
+- Steven (4/15)
+- Jordan (7/22)
 
 ## Personal
 <!-- color: #ff6b6b -->
@@ -45,15 +58,6 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 # Quotes
 
 > The best way to predict the future is to create it — Peter Drucker
-
-# Reminders
-
-## Monday Standup (Mon)
-- Blocked on API migration
-- Need to discuss deploy timeline
-
-## 1:1 with Sarah (Wed, Fri)
-- Ask about promotion timeline
 
 # TODO
 
@@ -114,7 +118,10 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 | Swimlane | `## Name` under `# Radar` |
 | Swimlane color | `<!-- color: #hex -->` after swimlane heading |
 | Sub-group | `### Name` under a swimlane |
-| Radar item | `- M/D/YY - Label` (no leading zeros, 2-digit year) |
+| Radar item (one-time) | `- M/D/YY - Label` (no leading zeros, 2-digit year) |
+| Radar item (weekly) | `- Label (Mon, Wed, Fri)` (day names from Mon-Sun) |
+| Radar item (yearly) | `- Label (M/D)` (month/day, no year) |
+| Radar sub-item | `    - Text` (4 spaces indent under any radar item) |
 | Todo section | `## Name` under `# TODO` |
 | Todo item | `* [ ] Text` or `* [x] Text` |
 | Todo due date | `    Due: M/D/YY` (4 spaces indent, before notes) |
@@ -122,8 +129,6 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 | Todo note (bullet) | `    - Text` (4 spaces indent + dash) |
 | Radar link | `* [ ] Text {radar:Swimlane}` |
 | Quote | `> Text — Attribution` (em dash or `--`) |
-| Reminder meeting | `## Name (Day, Day)` under `# Reminders` |
-| Reminder point | `- Text` under a meeting heading |
 | Goal section | `## Name` under `# Goals` |
 | Goal item | `- [ ] Text` or `- [x] Text` (dash, not asterisk) |
 | Goal radar link | `- [ ] Text {radar:Swimlane}` |
@@ -158,10 +163,8 @@ All commands are available via the command palette (`Ctrl+Shift+P` / `Cmd+Shift+
 
 - **Open Dashboard** — Open the main radar + todo dashboard
 - **Refresh** — Reload data from `.inc0ming/inc0ming.md`
-- **Add Swim Lane** / **Add Sub-Group** / **Add Radar Item** — Radar tree view
-- **Add Contact Group** / **Add Contact** / **Edit Contact** / **Delete** — Contacts tree view
-- **Edit** / **Delete** — Context menus on tree view items
-- **Expand All** — Expand all radar tree nodes
+- **Add Swim Lane** / **Add Sub-Group** / **Add Radar Item** — Radar management
+- **Edit** / **Delete** — Context menus on radar items
 
 ## Building from Source
 

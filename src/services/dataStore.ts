@@ -2,10 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import {
-    RadarData, RadarSwimlane, RadarSubGroup, RadarItem,
+    RadarData, RadarSwimlane, RadarSubGroup, RadarItem, RadarSubItem, RadarRecurrence,
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
-    ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     GoalData, GoalSection, GoalItem, GoalMilestone,
     BookmarkData, BookmarkSection, BookmarkItem,
     ContactData, ContactGroup, ContactItem,
@@ -17,7 +16,7 @@ import {
 import { slugify } from '../parsers/incomingParser';
 import { parseIncoming } from '../parsers/incomingParser';
 import { serializeIncoming } from '../serializers/incomingSerializer';
-import { parseDateMDYY, daysUntil, formatDateMDYY } from '../utils/dateUtils';
+import { parseDateMDYY, daysUntil, formatDateMDYY, effectiveDate } from '../utils/dateUtils';
 import { VIRT_GOAL_PREFIX, VIRT_MILESTONE_PREFIX, VIRT_TODO_PREFIX } from '../utils/virtualItems';
 import { validateFile } from './fileValidator';
 
@@ -25,7 +24,6 @@ export class DataStore implements vscode.Disposable {
     private _radar: RadarData = { swimlanes: [] };
     private _todo: TodoData = { sections: [] };
     private _quotes: QuoteData = { items: [] };
-    private _reminders: ReminderData = { meetings: [] };
     private _goals: GoalData = { sections: [] };
     private _bookmarks: BookmarkData = { sections: [] };
     private _contacts: ContactData = { groups: [] };
@@ -59,7 +57,6 @@ export class DataStore implements vscode.Disposable {
     get radar(): RadarData { return this._radar; }
     get todo(): TodoData { return this._todo; }
     get quotes(): QuoteData { return this._quotes; }
-    get reminders(): ReminderData { return this._reminders; }
     get goals(): GoalData { return this._goals; }
     get bookmarks(): BookmarkData { return this._bookmarks; }
     get contacts(): ContactData { return this._contacts; }
@@ -116,7 +113,7 @@ export class DataStore implements vscode.Disposable {
                     const date = parseDateMDYY(goal.dueDate);
                     if (date) {
                         const lane = findOrCreateLane(goal.radarLink || 'Goals');
-                        lane.items.push({ kind: 'radarItem', id: VIRT_GOAL_PREFIX + goal.id, date, label: goal.text });
+                        lane.items.push({ kind: 'radarItem', id: VIRT_GOAL_PREFIX + goal.id, date, label: goal.text, subItems: [] });
                     }
                 }
                 // Milestones with due dates
@@ -125,7 +122,7 @@ export class DataStore implements vscode.Disposable {
                     const msDate = parseDateMDYY(ms.dueDate);
                     if (!msDate) { continue; }
                     const msLane = findOrCreateLane(goal.radarLink || 'Goals');
-                    msLane.items.push({ kind: 'radarItem', id: VIRT_MILESTONE_PREFIX + ms.id, date: msDate, label: ms.text });
+                    msLane.items.push({ kind: 'radarItem', id: VIRT_MILESTONE_PREFIX + ms.id, date: msDate, label: ms.text, subItems: [] });
                 }
             }
         }
@@ -136,7 +133,7 @@ export class DataStore implements vscode.Disposable {
                 const date = parseDateMDYY(todo.dueDate);
                 if (!date) { continue; }
                 const lane = findOrCreateLane(todo.radarLink || 'TODOs');
-                lane.items.push({ kind: 'radarItem', id: VIRT_TODO_PREFIX + todo.id, date, label: todo.text });
+                lane.items.push({ kind: 'radarItem', id: VIRT_TODO_PREFIX + todo.id, date, label: todo.text, subItems: [] });
             }
         }
 
@@ -213,10 +210,12 @@ export class DataStore implements vscode.Disposable {
             }
         }
 
-        // Overdue radar items
+        // Overdue radar items (only one-time items with a date; recurring items auto-advance)
         for (const sw of this._radar.swimlanes) {
             const addRadarItems = (radarItems: RadarItem[], laneName: string) => {
                 for (const ri of radarItems) {
+                    if (ri.recurrence) { continue; } // Recurring items are never past due
+                    if (!ri.date) { continue; }
                     const days = daysUntil(ri.date);
                     if (days < 0) {
                         items.push({
@@ -283,10 +282,12 @@ export class DataStore implements vscode.Disposable {
             }
         }
 
-        // Past radar events
+        // Past radar events (only one-time items; recurring items auto-advance)
         for (const sw of this._radar.swimlanes) {
             const addPastRadar = (radarItems: RadarItem[], laneName: string) => {
                 for (const ri of radarItems) {
+                    if (ri.recurrence) { continue; } // Recurring items are never archived
+                    if (!ri.date) { continue; }
                     const days = daysUntil(ri.date);
                     if (days < 0) {
                         items.push({
@@ -384,16 +385,29 @@ export class DataStore implements vscode.Disposable {
         return true;
     }
 
-    addRadarItem(parentId: string, label: string, dateStr: string): boolean {
-        const date = parseDateMDYY(dateStr);
-        if (!date) { return false; }
+    addRadarItem(parentId: string, label: string, dateStr?: string, recurrence?: RadarRecurrence): boolean {
+        let item: RadarItem;
 
-        const item: RadarItem = {
-            kind: 'radarItem',
-            id: generateId('ri'),
-            date,
-            label,
-        };
+        if (recurrence) {
+            item = {
+                kind: 'radarItem',
+                id: generateId('ri'),
+                recurrence,
+                label,
+                subItems: [],
+            };
+        } else {
+            if (!dateStr) { return false; }
+            const date = parseDateMDYY(dateStr);
+            if (!date) { return false; }
+            item = {
+                kind: 'radarItem',
+                id: generateId('ri'),
+                date,
+                label,
+                subItems: [],
+            };
+        }
 
         // Try swimlane first
         const sw = this.findSwimlane(parentId);
@@ -406,13 +420,24 @@ export class DataStore implements vscode.Disposable {
         return false;
     }
 
-    editRadarItem(id: string, label: string, dateStr: string): boolean {
-        const date = parseDateMDYY(dateStr);
-        if (!date) { return false; }
+    editRadarItem(id: string, label: string, dateStr?: string): boolean {
         const result = this.findRadarItem(id);
         if (!result) { return false; }
         result.item.label = label;
-        result.item.date = date;
+        // Only update date for one-time items (items with a date or no recurrence)
+        if (!result.item.recurrence && dateStr) {
+            const date = parseDateMDYY(dateStr);
+            if (!date) { return false; }
+            result.item.date = date;
+        }
+        return true;
+    }
+
+    editRadarItemRecurrence(id: string, recurrence: RadarRecurrence): boolean {
+        const result = this.findRadarItem(id);
+        if (!result) { return false; }
+        result.item.recurrence = recurrence;
+        result.item.date = undefined;
         return true;
     }
 
@@ -580,79 +605,57 @@ export class DataStore implements vscode.Disposable {
         return true;
     }
 
-    // --- Reminder queries ---
-    findMeeting(id: string): ReminderMeeting | undefined {
-        return this._reminders.meetings.find(m => m.id === id);
-    }
-
-    findPoint(id: string): { point: ReminderPoint; meeting: ReminderMeeting } | undefined {
-        for (const meeting of this._reminders.meetings) {
-            const point = meeting.points.find(p => p.id === id);
-            if (point) { return { point, meeting }; }
+    // --- Sub-item queries ---
+    findSubItem(id: string): { subItem: RadarSubItem; radarItem: RadarItem } | undefined {
+        for (const sw of this._radar.swimlanes) {
+            for (const ri of sw.items) {
+                const sub = ri.subItems.find(s => s.id === id);
+                if (sub) { return { subItem: sub, radarItem: ri }; }
+            }
+            for (const sg of sw.subGroups) {
+                for (const ri of sg.items) {
+                    const sub = ri.subItems.find(s => s.id === id);
+                    if (sub) { return { subItem: sub, radarItem: ri }; }
+                }
+            }
         }
         return undefined;
     }
 
-    // --- Reminder mutations ---
-    addMeeting(name: string, days: DayOfWeek[]): ReminderMeeting {
-        const meeting: ReminderMeeting = {
-            kind: 'reminderMeeting',
-            id: generateId('rm'),
-            name,
-            days,
-            points: [],
-        };
-        this._reminders.meetings.push(meeting);
-        return meeting;
-    }
-
-    renameMeeting(id: string, name: string, days: DayOfWeek[]): boolean {
-        const meeting = this.findMeeting(id);
-        if (!meeting) { return false; }
-        meeting.name = name;
-        meeting.days = days;
-        return true;
-    }
-
-    deleteMeeting(id: string): boolean {
-        const idx = this._reminders.meetings.findIndex(m => m.id === id);
-        if (idx < 0) { return false; }
-        this._reminders.meetings.splice(idx, 1);
-        return true;
-    }
-
-    addPoint(meetingId: string, text: string): ReminderPoint | undefined {
-        const meeting = this.findMeeting(meetingId);
-        if (!meeting) { return undefined; }
-        const point: ReminderPoint = {
-            kind: 'reminderPoint',
-            id: generateId('rp'),
+    // --- Sub-item mutations ---
+    addSubItem(radarItemId: string, text: string): RadarSubItem | undefined {
+        const result = this.findRadarItem(radarItemId);
+        if (!result) { return undefined; }
+        const sub: RadarSubItem = {
+            kind: 'radarSubItem',
+            id: generateId('rs'),
             text,
         };
-        meeting.points.push(point);
-        return point;
+        result.item.subItems.push(sub);
+        return sub;
     }
 
-    editPoint(id: string, text: string): boolean {
-        const result = this.findPoint(id);
+    editSubItem(id: string, text: string): boolean {
+        const result = this.findSubItem(id);
         if (!result) { return false; }
-        result.point.text = text;
+        result.subItem.text = text;
         return true;
     }
 
-    deletePoint(id: string): boolean {
-        for (const meeting of this._reminders.meetings) {
-            const idx = meeting.points.findIndex(p => p.id === id);
-            if (idx >= 0) { meeting.points.splice(idx, 1); return true; }
+    deleteSubItem(id: string): boolean {
+        for (const sw of this._radar.swimlanes) {
+            for (const ri of sw.items) {
+                const idx = ri.subItems.findIndex(s => s.id === id);
+                if (idx >= 0) { ri.subItems.splice(idx, 1); return true; }
+            }
+            for (const sg of sw.subGroups) {
+                for (const ri of sg.items) {
+                    const idx = ri.subItems.findIndex(s => s.id === id);
+                    if (idx >= 0) { ri.subItems.splice(idx, 1); return true; }
+                }
+            }
         }
         return false;
-    }
-
-    clearMeeting(id: string): boolean {
-        const meeting = this.findMeeting(id);
-        if (!meeting) { return false; }
-        meeting.points = [];
-        return true;
     }
 
     // --- Goal queries ---
@@ -1206,7 +1209,6 @@ export class DataStore implements vscode.Disposable {
             this._radar = { swimlanes: [] };
             this._todo = { sections: [] };
             this._quotes = { items: [] };
-            this._reminders = { meetings: [] };
             this._goals = { sections: [] };
             this._bookmarks = { sections: [] };
             this._contacts = { groups: [] };
@@ -1221,7 +1223,7 @@ export class DataStore implements vscode.Disposable {
         this._cachedAugmentedRadar = null;
         this._cachedPastDue = null;
         this._cachedArchive = null;
-        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._reminders, this._goals, this._bookmarks, this._contacts, this._notes);
+        const content = serializeIncoming(this._radar, this._todo, this._unparsedLines, this._quotes, this._goals, this._bookmarks, this._contacts, this._notes);
         this._selfWriting = true;
         this._lastWriteTime = Date.now();
         try {
@@ -1246,7 +1248,6 @@ export class DataStore implements vscode.Disposable {
         this._radar = result.radar;
         this._todo = result.todo;
         this._quotes = result.quotes;
-        this._reminders = result.reminders;
         this._goals = result.goals;
         this._bookmarks = result.bookmarks;
         this._contacts = result.contacts;

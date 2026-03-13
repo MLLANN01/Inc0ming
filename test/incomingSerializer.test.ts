@@ -31,6 +31,85 @@ suite('Inc0ming Serializer', () => {
         assert.strictEqual(reparsed.todo.sections[0].items[1].completed, true);
     });
 
+    test('round-trips weekly radar items', () => {
+        const input = `# Radar
+
+## Meetings
+- Standup (Mon, Wed, Fri)
+    - Blocked on API
+    - Need deploy window
+
+# TODO
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.radar.swimlanes[0].items.length, 1);
+        const item = reparsed.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.label, 'Standup');
+        assert.ok(item.recurrence);
+        assert.strictEqual(item.recurrence!.type, 'weekly');
+        if (item.recurrence!.type === 'weekly') {
+            assert.deepStrictEqual(item.recurrence!.days, ['Mon', 'Wed', 'Fri']);
+        }
+        assert.strictEqual(item.subItems.length, 2);
+        assert.strictEqual(item.subItems[0].text, 'Blocked on API');
+    });
+
+    test('round-trips yearly radar items', () => {
+        const input = `# Radar
+
+## Birthdays
+- Steven (4/15)
+- Jordan (7/22)
+
+# TODO
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.radar.swimlanes[0].items.length, 2);
+        const item = reparsed.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.label, 'Steven');
+        assert.ok(item.recurrence);
+        assert.strictEqual(item.recurrence!.type, 'yearly');
+        if (item.recurrence!.type === 'yearly') {
+            assert.strictEqual(item.recurrence!.month, 4);
+            assert.strictEqual(item.recurrence!.day, 15);
+        }
+    });
+
+    test('round-trips mixed item types with sub-items', () => {
+        const input = `# Radar
+
+## Work
+- 3/15/26 - Deploy
+    - Confirm rollback plan
+- Standup (Mon, Wed)
+    - Blocked on API
+- Birthday (4/15)
+
+# TODO
+`;
+
+        const result = parseIncoming(input);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines);
+        const reparsed = parseIncoming(output);
+
+        assert.strictEqual(reparsed.radar.swimlanes[0].items.length, 3);
+        assert.ok(reparsed.radar.swimlanes[0].items[0].date);
+        assert.strictEqual(reparsed.radar.swimlanes[0].items[0].subItems.length, 1);
+        assert.ok(reparsed.radar.swimlanes[0].items[1].recurrence);
+        assert.strictEqual(reparsed.radar.swimlanes[0].items[1].recurrence!.type, 'weekly');
+        assert.strictEqual(reparsed.radar.swimlanes[0].items[1].subItems.length, 1);
+        assert.ok(reparsed.radar.swimlanes[0].items[2].recurrence);
+        assert.strictEqual(reparsed.radar.swimlanes[0].items[2].recurrence!.type, 'yearly');
+    });
+
     test('preserves color metadata', () => {
         const input = `# Radar
 
@@ -198,94 +277,6 @@ suite('Inc0ming Serializer', () => {
         assert.strictEqual(reparsed.todo.sections[0].items.length, 1);
     });
 
-    test('round-trips reminders section', () => {
-        const input = `# Radar
-
-## Lane
-- 1/1/26 - Item
-
-# Quotes
-> Stay hungry. — Jobs
-
-# Reminders
-
-## Monday Standup (Mon)
-- Blocked on API migration
-- Need to discuss deploy timeline
-
-## 1:1 with Sarah (Wed, Fri)
-- Ask about promotion timeline
-
-# TODO
-## Tasks
-* [ ] Task
-`;
-
-        const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
-        const reparsed = parseIncoming(output);
-
-        assert.strictEqual(reparsed.reminders.meetings.length, 2);
-        assert.strictEqual(reparsed.reminders.meetings[0].name, 'Monday Standup');
-        assert.deepStrictEqual(reparsed.reminders.meetings[0].days, ['Mon']);
-        assert.strictEqual(reparsed.reminders.meetings[0].points.length, 2);
-        assert.strictEqual(reparsed.reminders.meetings[0].points[0].text, 'Blocked on API migration');
-        assert.strictEqual(reparsed.reminders.meetings[1].name, '1:1 with Sarah');
-        assert.deepStrictEqual(reparsed.reminders.meetings[1].days, ['Wed', 'Fri']);
-        // Radar and todo still intact
-        assert.strictEqual(reparsed.radar.swimlanes.length, 1);
-        assert.strictEqual(reparsed.todo.sections[0].items.length, 1);
-        assert.strictEqual(reparsed.quotes.items.length, 1);
-    });
-
-    test('round-trips reminders with multiple days', () => {
-        const input = `# Radar
-
-# Reminders
-
-## Daily Sync (Mon, Tue, Wed, Thu, Fri)
-- Check blockers
-
-# TODO
-`;
-
-        const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
-        const reparsed = parseIncoming(output);
-
-        assert.strictEqual(reparsed.reminders.meetings.length, 1);
-        assert.deepStrictEqual(reparsed.reminders.meetings[0].days, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
-    });
-
-    test('round-trips empty meetings (no points)', () => {
-        const input = `# Radar
-
-# Reminders
-
-## Empty Meeting (Tue)
-
-# TODO
-`;
-
-        const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders);
-        const reparsed = parseIncoming(output);
-
-        assert.strictEqual(reparsed.reminders.meetings.length, 1);
-        assert.strictEqual(reparsed.reminders.meetings[0].name, 'Empty Meeting');
-        assert.strictEqual(reparsed.reminders.meetings[0].points.length, 0);
-    });
-
-    test('omits reminders section when no meetings', () => {
-        const output = serializeIncoming(
-            { swimlanes: [] },
-            { sections: [] },
-            [],
-            { items: [] },
-            { meetings: [] }
-        );
-        assert.ok(!output.includes('# Reminders'));
-    });
 
     // ---- Goals Section ----
 
@@ -314,7 +305,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections.length, 2);
@@ -343,7 +334,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections[0].items[0].milestones[0].weight, 30);
@@ -363,7 +354,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections[0].items[0].completionNote, '4/8/26 — two days ahead');
@@ -381,7 +372,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
 
         assert.ok(output.includes('{radar:Certifications}'));
 
@@ -395,7 +386,6 @@ suite('Inc0ming Serializer', () => {
             { sections: [] },
             [],
             { items: [] },
-            { meetings: [] },
             { sections: [] }
         );
         assert.ok(!output.includes('# Goals'));
@@ -407,7 +397,6 @@ suite('Inc0ming Serializer', () => {
             { sections: [] },
             [],
             { items: [] },
-            { meetings: [] },
             { sections: [] }
         );
         assert.ok(!output.includes('# Goals'));
@@ -430,7 +419,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections[0].items[0].milestones[0].completionNote, '3/1 — passed');
@@ -451,7 +440,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections[0].items[0].dueDate, '5/15/26');
@@ -472,7 +461,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.goals.sections[0].items[0].milestones[0].dueDate, '5/1/26');
@@ -491,7 +480,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
 
         assert.ok(!output.includes('Due:'));
     });
@@ -507,7 +496,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.todo.sections[0].items[0].dueDate, '4/1/26');
@@ -526,7 +515,7 @@ suite('Inc0ming Serializer', () => {
 `;
 
         const result = parseIncoming(input);
-        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.reminders, result.goals);
+        const output = serializeIncoming(result.radar, result.todo, result.unparsedLines, result.quotes, result.goals);
         const reparsed = parseIncoming(output);
 
         assert.strictEqual(reparsed.todo.sections[0].items[0].dueDate, '4/1/26');

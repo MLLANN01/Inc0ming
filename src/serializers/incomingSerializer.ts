@@ -1,4 +1,4 @@
-import { RadarData, TodoData, QuoteData, ReminderData, GoalData, BookmarkData, ContactData, NoteData, UnparsedLine } from '../models/types';
+import { RadarData, RadarItem, TodoData, QuoteData, GoalData, BookmarkData, ContactData, NoteData, UnparsedLine } from '../models/types';
 import { formatDateMDYY } from '../utils/dateUtils';
 
 export function serializeIncoming(
@@ -6,7 +6,6 @@ export function serializeIncoming(
     todo: TodoData,
     unparsedLines: UnparsedLine[] = [],
     quotes: QuoteData = { items: [] },
-    reminders: ReminderData = { meetings: [] },
     goals: GoalData = { sections: [] },
     bookmarks: BookmarkData = { sections: [] },
     contacts: ContactData = { groups: [] },
@@ -18,6 +17,23 @@ export function serializeIncoming(
     parts.push('# Radar');
     parts.push('');
 
+    function serializeRadarItem(item: RadarItem): void {
+        if (item.date) {
+            // One-time
+            parts.push(`- ${formatDateMDYY(item.date)} - ${item.label}`);
+        } else if (item.recurrence) {
+            if (item.recurrence.type === 'weekly') {
+                parts.push(`- ${item.label} (${item.recurrence.days.join(', ')})`);
+            } else {
+                parts.push(`- ${item.label} (${item.recurrence.month}/${item.recurrence.day})`);
+            }
+        }
+        // Sub-items
+        for (const sub of item.subItems) {
+            parts.push(`    - ${sub.text}`);
+        }
+    }
+
     for (const swimlane of radar.swimlanes) {
         parts.push(`## ${swimlane.name}`);
 
@@ -26,7 +42,7 @@ export function serializeIncoming(
         }
 
         for (const item of swimlane.items) {
-            parts.push(`- ${formatDateMDYY(item.date)} - ${item.label}`);
+            serializeRadarItem(item);
         }
 
         // Unparsed lines that belonged to this swimlane (direct)
@@ -39,7 +55,7 @@ export function serializeIncoming(
         for (const subGroup of swimlane.subGroups) {
             parts.push(`### ${subGroup.name}`);
             for (const item of subGroup.items) {
-                parts.push(`- ${formatDateMDYY(item.date)} - ${item.label}`);
+                serializeRadarItem(item);
             }
 
             // Unparsed lines for this sub-group
@@ -62,22 +78,6 @@ export function serializeIncoming(
                 parts.push(`> ${q.text} — ${q.attribution}`);
             } else {
                 parts.push(`> ${q.text}`);
-            }
-        }
-        parts.push('');
-    }
-
-    // === Reminders Section ===
-    if (reminders.meetings.length > 0) {
-        parts.push('# Reminders');
-        for (const meeting of reminders.meetings) {
-            if (meeting.days.length > 0) {
-                parts.push(`## ${meeting.name} (${meeting.days.join(', ')})`);
-            } else {
-                parts.push(`## ${meeting.name}`);
-            }
-            for (const point of meeting.points) {
-                parts.push(`- ${point.text}`);
             }
         }
         parts.push('');

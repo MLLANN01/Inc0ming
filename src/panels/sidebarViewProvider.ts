@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
 import { DashboardPanel } from './dashboardPanel';
-import { daysUntil, formatDateMDYY, getUrgencyLevel } from '../utils/dateUtils';
+import { daysUntil, formatDateMDYY, getUrgencyLevel, effectiveDate } from '../utils/dateUtils';
 import { getNonce } from '../utils/nonce';
 import { getVirtualItemKind, stripVirtualPrefix, VirtualItemKind } from '../utils/virtualItems';
 
@@ -92,18 +92,26 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
         // Build agenda — radar items (including virtual goal/todo/milestone blips) within warning window
         const augmented = this._store.computeAugmentedRadar();
-        const allItems: { date: Date; label: string; id: string }[] = [];
+        const allItems: { effDate: Date; label: string; id: string }[] = [];
         for (const sw of augmented.swimlanes) {
-            allItems.push(...sw.items);
-            for (const sg of sw.subGroups) { allItems.push(...sg.items); }
+            for (const item of sw.items) {
+                const eff = effectiveDate(item);
+                if (eff) { allItems.push({ effDate: eff, label: item.label, id: item.id }); }
+            }
+            for (const sg of sw.subGroups) {
+                for (const item of sg.items) {
+                    const eff = effectiveDate(item);
+                    if (eff) { allItems.push({ effDate: eff, label: item.label, id: item.id }); }
+                }
+            }
         }
         const agenda = allItems
             .map(item => {
-                const days = daysUntil(item.date);
+                const days = daysUntil(item.effDate);
                 const itemKind: VirtualItemKind = getVirtualItemKind(item.id);
                 return {
                     label: item.label,
-                    date: formatDateMDYY(item.date),
+                    date: formatDateMDYY(item.effDate),
                     days,
                     urgency: getUrgencyLevel(days, warningDays, urgentDays),
                     itemKind,

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { DataStore } from '../services/dataStore';
-import { daysUntil } from './dateUtils';
+import { daysUntil, effectiveDate } from './dateUtils';
 
 export class NotificationManager {
     private notifiedItems = new Set<string>();
@@ -13,7 +13,9 @@ export class NotificationManager {
         const urgentDays = config.get<number>('urgentDays', 1);
 
         for (const item of store.allRadarItems()) {
-            const days = daysUntil(item.date);
+            const eff = effectiveDate(item);
+            if (!eff) { continue; }
+            const days = daysUntil(eff);
             if (days < 0 || this.notifiedItems.has(item.id)) { continue; }
 
             if (days <= urgentDays) {

@@ -2,7 +2,7 @@
   "name": "inc0ming",
   "displayName": "Inc0ming",
   "description": "Radar + Todo dashboard powered by markdown files",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "MLLANN01",
   "icon": "media/icon.png",
   "repository": {
@@ -36,16 +36,6 @@
           "id": "inc0ming.statusView",
           "name": "Status",
           "type": "webview"
-        },
-        {
-          "id": "inc0ming.radarTree",
-          "name": "Radar Swim Lanes",
-          "type": "tree"
-        },
-        {
-          "id": "inc0ming.contactsTree",
-          "name": "Contacts",
-          "type": "tree"
         }
       ]
     },
@@ -91,36 +81,6 @@
         "title": "Delete",
         "icon": "$(trash)",
         "category": "Inc0ming"
-      },
-{
-        "command": "inc0ming.expandRadarTree",
-        "title": "Expand All",
-        "icon": "$(expand-all)",
-        "category": "Inc0ming"
-      },
-{
-        "command": "inc0ming.addContactGroup",
-        "title": "Add Contact Group",
-        "icon": "$(add)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.addContact",
-        "title": "Add Contact",
-        "icon": "$(person-add)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.editContact",
-        "title": "Edit Contact",
-        "icon": "$(edit)",
-        "category": "Inc0ming"
-      },
-      {
-        "command": "inc0ming.deleteContactItem",
-        "title": "Delete",
-        "icon": "$(trash)",
-        "category": "Inc0ming"
       }
     ],
     "menus": {
@@ -129,80 +89,9 @@
           "command": "inc0ming.refresh",
           "when": "view == inc0ming.statusView",
           "group": "navigation"
-        },
-        {
-          "command": "inc0ming.expandRadarTree",
-          "when": "view == inc0ming.radarTree",
-          "group": "navigation"
-        },
-        {
-          "command": "inc0ming.addSwimlane",
-          "when": "view == inc0ming.radarTree",
-          "group": "navigation"
-        },
-        {
-          "command": "inc0ming.addContactGroup",
-          "when": "view == inc0ming.contactsTree",
-          "group": "navigation"
         }
       ],
-      "view/item/context": [
-        {
-          "command": "inc0ming.addRadarItem",
-          "when": "viewItem == swimlane || viewItem == subgroup",
-          "group": "inline"
-        },
-        {
-          "command": "inc0ming.deleteItem",
-          "when": "viewItem == radarItem",
-          "group": "inline"
-        },
-        {
-          "command": "inc0ming.addRadarItem",
-          "when": "viewItem == swimlane || viewItem == subgroup",
-          "group": "1_add"
-        },
-        {
-          "command": "inc0ming.addSubGroup",
-          "when": "viewItem == swimlane",
-          "group": "1_add"
-        },
-        {
-          "command": "inc0ming.editItem",
-          "when": "viewItem == swimlane || viewItem == subgroup || viewItem == radarItem",
-          "group": "2_edit"
-        },
-        {
-          "command": "inc0ming.deleteItem",
-          "when": "viewItem == swimlane || viewItem == subgroup || viewItem == radarItem",
-          "group": "3_delete"
-        },
-        {
-          "command": "inc0ming.addContact",
-          "when": "viewItem == contactGroup",
-          "group": "inline"
-        },
-        {
-          "command": "inc0ming.deleteContactItem",
-          "when": "viewItem == contact || viewItem == contactGroup",
-          "group": "inline"
-        },
-        {
-          "command": "inc0ming.addContact",
-          "when": "viewItem == contactGroup",
-          "group": "1_add"
-        },
-        {
-          "command": "inc0ming.editContact",
-          "when": "viewItem == contact",
-          "group": "2_edit"
-        },
-        {
-          "command": "inc0ming.deleteContactItem",
-          "when": "viewItem == contact || viewItem == contactGroup",
-          "group": "3_delete"
-        }
-      ]
+      "view/item/context": []
     },
     "configuration": {
       "title": "Inc0ming",

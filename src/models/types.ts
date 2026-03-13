@@ -10,11 +10,25 @@ export function resetIdCounter(): void {
 }
 
 // ===== Radar Models =====
+export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+
+export interface RadarSubItem {
+    kind: 'radarSubItem';
+    id: string;
+    text: string;
+}
+
+export type RadarRecurrence =
+    | { type: 'weekly'; days: DayOfWeek[] }
+    | { type: 'yearly'; month: number; day: number };
+
 export interface RadarItem {
     kind: 'radarItem';
     id: string;
-    date: Date;
+    date?: Date;                    // present for one-time items
+    recurrence?: RadarRecurrence;   // present for recurring items
     label: string;
+    subItems: RadarSubItem[];
 }
 
 export interface RadarSubGroup {
@@ -48,27 +62,6 @@ export interface QuoteItem {
 
 export interface QuoteData {
     items: QuoteItem[];
-}
-
-// ===== Reminder Models =====
-export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-
-export interface ReminderPoint {
-    kind: 'reminderPoint';
-    id: string;
-    text: string;
-}
-
-export interface ReminderMeeting {
-    kind: 'reminderMeeting';
-    id: string;
-    name: string;
-    days: DayOfWeek[];
-    points: ReminderPoint[];
-}
-
-export interface ReminderData {
-    meetings: ReminderMeeting[];
 }
 
 // ===== Goal Models =====
@@ -212,7 +205,6 @@ export interface ParseResult {
     radar: RadarData;
     todo: TodoData;
     quotes: QuoteData;
-    reminders: ReminderData;
     goals: GoalData;
     bookmarks: BookmarkData;
     contacts: ContactData;
@@ -229,7 +221,7 @@ export interface ValidationIssue {
     severity: 'error' | 'warning' | 'info';
     code: string;       // e.g. 'E001', 'W004'
     message: string;
-    section?: string;   // 'radar' | 'todo' | 'goals' | 'reminders' | 'quotes' | 'structure'
+    section?: string;   // 'radar' | 'todo' | 'goals' | 'quotes' | 'structure'
 }
 
 export interface ValidationResult {
@@ -238,12 +230,20 @@ export interface ValidationResult {
 }
 
 // ===== Serialized types (for webview, dates as ISO strings) =====
+export interface SerializedRadarSubItem {
+    id: string;
+    text: string;
+}
+
 export interface SerializedRadarItem {
     id: string;
-    date: string;
+    date?: string;
     label: string;
     virtual?: boolean;
     shape?: 'circle' | 'diamond' | 'flag' | 'star';
+    recurrence?: RadarRecurrence;
+    subItems?: SerializedRadarSubItem[];
+    isToday?: boolean;
 }
 
 export interface SerializedRadarSubGroup {
@@ -271,10 +271,10 @@ export type ExtensionMessage =
     | { type: 'radarUpdate'; data: SerializedRadarData }
     | { type: 'todoUpdate'; data: TodoData }
     | { type: 'quotesUpdate'; data: QuoteData }
-    | { type: 'remindersUpdate'; data: ReminderData }
     | { type: 'goalsUpdate'; data: GoalData }
     | { type: 'bookmarksUpdate'; data: BookmarkData }
     | { type: 'notesUpdate'; data: NoteData }
+    | { type: 'contactsUpdate'; data: ContactData }
     | { type: 'noteContent'; slug: string; content: string }
     | { type: 'noteImageUploaded'; src: string }
     | { type: 'parseErrors'; errors: ParseError[] };
@@ -285,7 +285,7 @@ export type WebviewMessage =
     | { type: 'editRadarItem'; id: string; label: string; dateStr: string }
     | { type: 'editTodoItem'; id: string; text: string }
     | { type: 'addTodo'; text: string; sectionId: string }
-    | { type: 'addRadarItem'; parentId: string; label: string; dateStr: string }
+    | { type: 'addRadarItem'; parentId: string; label: string; dateStr: string; days?: string; monthDay?: string }
     | { type: 'addSwimlane'; name: string }
     | { type: 'addSubGroup'; swimlaneId: string; name: string }
     | { type: 'deleteRadarItem'; id: string }
@@ -304,13 +304,9 @@ export type WebviewMessage =
     | { type: 'addQuote'; text: string; attribution?: string }
     | { type: 'editQuote'; id: string; text: string; attribution?: string }
     | { type: 'deleteQuote'; id: string }
-    | { type: 'addMeeting'; name: string; days: string }
-    | { type: 'renameMeeting'; id: string; name: string; days: string }
-    | { type: 'deleteMeeting'; id: string }
-    | { type: 'addPoint'; meetingId: string; text: string }
-    | { type: 'editPoint'; id: string; text: string }
-    | { type: 'deletePoint'; id: string }
-    | { type: 'clearMeeting'; id: string }
+    | { type: 'addSubItem'; radarItemId: string; text: string }
+    | { type: 'editSubItem'; id: string; text: string }
+    | { type: 'deleteSubItem'; id: string }
     | { type: 'editTodoNotes'; id: string; notes: string }
     | { type: 'addGoalSection'; name: string }
     | { type: 'renameGoalSection'; id: string; name: string }
@@ -348,5 +344,13 @@ export type WebviewMessage =
     | { type: 'updateNoteTags'; id: string; tags: NoteTag[] }
     | { type: 'requestNoteContent'; slug: string }
     | { type: 'saveNoteContent'; slug: string; content: string }
-    | { type: 'uploadNoteImage'; data: string; mimeType: string; noteSlug: string };
+    | { type: 'uploadNoteImage'; data: string; mimeType: string; noteSlug: string }
+    | { type: 'addRecurringItem'; label: string; days?: string; monthDay?: string }
+    | { type: 'editRecurringSchedule'; id: string; days?: string; monthDay?: string }
+    | { type: 'addContactGroup'; name: string }
+    | { type: 'renameContactGroup'; id: string; name: string }
+    | { type: 'deleteContactGroup'; id: string }
+    | { type: 'addContact'; groupId: string; name: string; contactType: string }
+    | { type: 'editContact'; id: string; name: string; contactType: string; email: string; phone: string; notes: string }
+    | { type: 'deleteContact'; id: string };
 

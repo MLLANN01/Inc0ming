@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.8.0] - 2026-03-12
+
+### Added
+- **Recurring radar items** — weekly (`- Label (Mon, Wed, Fri)`) and yearly (`- Label (4/15)`) recurrence patterns on radar items. Weekly items show day badges and today-highlighting; yearly items auto-advance to the next occurrence on the scanner.
+- **Radar sub-items** — any radar item (one-time, weekly, or yearly) can have indented sub-items (`    - text`) for talking points, notes, or checklists. Add, edit, and delete inline from the dashboard.
+- **Contacts dashboard section** — contacts moved from the sidebar tree view into the dashboard as grid widgets (matching the Bookmarks pattern). Groups render as cards with inline add/edit/delete for contacts, double-click to rename groups, and a search bar that filters across all groups.
+- **Add Radar Item command** — now prompts for recurrence type (one-time date, weekly days, or yearly month/day) via QuickPick
+
+### Changed
+- **Reminders consolidated into Radar** — the separate `# Reminders` section is removed. Meeting reminders are now weekly radar items with sub-items under a swimlane (e.g., `- Standup (Mon, Wed)` with `    - talking point` sub-items). Existing reminder data should be migrated to radar items.
+- Recurring radar items are filtered from the scanner canvas — only one-time dated items appear as blips
+- Recurring items are never shown as "past due" or archived — they auto-advance to the next occurrence
+- All dashboard sections start collapsed by default
+
+### Fixed
+- **Notes editor rendering** — bullet lists, ordered lists, code blocks, and horizontal rules now render correctly in the TipTap editor. Root cause was a ProseMirror-to-TipTap node type name mismatch (`bullet_list` vs `bulletList`, etc.) that silently dropped content. The markdown serializer also handles both naming conventions for round-trip fidelity.
+- Consistent drag grip character (`\u2847`) and chevron encoding across all dashboard section headers (Radar, Meeting Notes, Contacts)
+
+### Removed
+- `# Reminders` section and all reminder types (`ReminderMeeting`, `ReminderPoint`, `ReminderData`)
+- Radar tree view from sidebar explorer (`radarTreeProvider.ts`) — radar items are managed via the dashboard
+- Contacts tree view from sidebar explorer (`contactsTreeProvider.ts`) — replaced by dashboard section
+- 4 contact command palette commands (`addContactGroup`, `addContact`, `editContact`, `deleteContactItem`)
+- All reminder-specific message handlers and CRUD operations
+
 ## [0.7.0] - 2026-03-11
 
 ### Added

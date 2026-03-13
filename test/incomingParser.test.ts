@@ -62,8 +62,8 @@ suite('Inc0ming Parser', () => {
         const result = parseIncoming(sampleIncoming);
         assert.strictEqual(result.radar.swimlanes[0].items.length, 2);
         assert.strictEqual(result.radar.swimlanes[0].items[0].label, 'Alex');
-        assert.strictEqual(result.radar.swimlanes[0].items[0].date.getMonth(), 2); // March
-        assert.strictEqual(result.radar.swimlanes[0].items[0].date.getDate(), 31);
+        assert.strictEqual(result.radar.swimlanes[0].items[0].date!.getMonth(), 2); // March
+        assert.strictEqual(result.radar.swimlanes[0].items[0].date!.getDate(), 31);
     });
 
     test('radar items have kind and id', () => {
@@ -94,8 +94,8 @@ suite('Inc0ming Parser', () => {
         const result = parseIncoming(sampleIncoming);
         const critical = result.radar.swimlanes[2].subGroups[0];
         assert.strictEqual(critical.items[0].label, 'DEV');
-        assert.strictEqual(critical.items[0].date.getMonth(), 3); // April
-        assert.strictEqual(critical.items[0].date.getDate(), 1);
+        assert.strictEqual(critical.items[0].date!.getMonth(), 3); // April
+        assert.strictEqual(critical.items[0].date!.getDate(), 1);
     });
 
     test('swimlane direct items count is correct', () => {
@@ -287,67 +287,102 @@ suite('Inc0ming Parser', () => {
         assert.ok(result.quotes.items[0].id.startsWith('qt_'));
     });
 
-    // ---- Reminders Section ----
+    // ---- Weekly Radar Items ----
 
-    test('parses reminders with day tags', () => {
-        const input = `# Reminders\n\n## Monday Standup (Mon)\n- Blocked on API migration\n- Need to discuss deploy timeline`;
+    test('parses weekly radar items', () => {
+        const input = `# Radar\n\n## Meetings\n- Standup (Mon, Wed)`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings.length, 1);
-        assert.strictEqual(result.reminders.meetings[0].name, 'Monday Standup');
-        assert.deepStrictEqual(result.reminders.meetings[0].days, ['Mon']);
-        assert.strictEqual(result.reminders.meetings[0].points.length, 2);
-        assert.strictEqual(result.reminders.meetings[0].points[0].text, 'Blocked on API migration');
+        assert.strictEqual(result.radar.swimlanes[0].items.length, 1);
+        const item = result.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.label, 'Standup');
+        assert.ok(item.recurrence);
+        assert.strictEqual(item.recurrence!.type, 'weekly');
+        if (item.recurrence!.type === 'weekly') {
+            assert.deepStrictEqual(item.recurrence!.days, ['Mon', 'Wed']);
+        }
+        assert.strictEqual(item.date, undefined);
     });
 
-    test('parses reminders with multiple days', () => {
-        const input = `# Reminders\n\n## 1:1 with Sarah (Wed, Fri)\n- Ask about promotion timeline`;
+    test('parses weekly item with all weekdays', () => {
+        const input = `# Radar\n\n## Work\n- Daily Sync (Mon, Tue, Wed, Thu, Fri)`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings[0].name, '1:1 with Sarah');
-        assert.deepStrictEqual(result.reminders.meetings[0].days, ['Wed', 'Fri']);
-        assert.strictEqual(result.reminders.meetings[0].points.length, 1);
+        const item = result.radar.swimlanes[0].items[0];
+        assert.ok(item.recurrence);
+        assert.strictEqual(item.recurrence!.type, 'weekly');
+        if (item.recurrence!.type === 'weekly') {
+            assert.strictEqual(item.recurrence!.days.length, 5);
+        }
     });
 
-    test('parses reminders with no day tags', () => {
-        const input = `# Reminders\n\n## Ad Hoc Sync\n- Topic one`;
+    // ---- Yearly Radar Items ----
+
+    test('parses yearly radar items', () => {
+        const input = `# Radar\n\n## Birthdays\n- Steven (4/15)`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings[0].name, 'Ad Hoc Sync');
-        assert.deepStrictEqual(result.reminders.meetings[0].days, []);
-        assert.strictEqual(result.reminders.meetings[0].points.length, 1);
+        assert.strictEqual(result.radar.swimlanes[0].items.length, 1);
+        const item = result.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.label, 'Steven');
+        assert.ok(item.recurrence);
+        assert.strictEqual(item.recurrence!.type, 'yearly');
+        if (item.recurrence!.type === 'yearly') {
+            assert.strictEqual(item.recurrence!.month, 4);
+            assert.strictEqual(item.recurrence!.day, 15);
+        }
+        assert.strictEqual(item.date, undefined);
     });
 
-    test('parses empty meetings (no points)', () => {
-        const input = `# Reminders\n\n## Empty Meeting (Tue)`;
+    // ---- Sub-items ----
+
+    test('parses sub-items under one-time items', () => {
+        const input = `# Radar\n\n## Work\n- 3/15/26 - Deploy\n    - Confirm rollback plan\n    - Notify stakeholders`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings.length, 1);
-        assert.strictEqual(result.reminders.meetings[0].points.length, 0);
+        const item = result.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.subItems.length, 2);
+        assert.strictEqual(item.subItems[0].text, 'Confirm rollback plan');
+        assert.strictEqual(item.subItems[1].text, 'Notify stakeholders');
     });
 
-    test('reminder meetings have kind and id', () => {
-        const input = `# Reminders\n\n## Standup (Mon)\n- Item`;
+    test('parses sub-items under weekly items', () => {
+        const input = `# Radar\n\n## Meetings\n- Standup (Mon, Wed)\n    - Blocked on API\n    - Need deploy window`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings[0].kind, 'reminderMeeting');
-        assert.ok(result.reminders.meetings[0].id.startsWith('rm_'));
+        const item = result.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.subItems.length, 2);
+        assert.strictEqual(item.subItems[0].text, 'Blocked on API');
     });
 
-    test('reminder points have kind and id', () => {
-        const input = `# Reminders\n\n## Standup (Mon)\n- Item`;
+    test('parses sub-items under yearly items', () => {
+        const input = `# Radar\n\n## Birthdays\n- Steven (4/15)\n    - Get gift card`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings[0].points[0].kind, 'reminderPoint');
-        assert.ok(result.reminders.meetings[0].points[0].id.startsWith('rp_'));
+        const item = result.radar.swimlanes[0].items[0];
+        assert.strictEqual(item.subItems.length, 1);
+        assert.strictEqual(item.subItems[0].text, 'Get gift card');
     });
 
-    test('reminders section is independent of section ordering', () => {
-        const input = `# TODO\n## Tasks\n* [ ] Task\n\n# Reminders\n\n## Standup (Mon)\n- Item\n\n# Radar\n\n## Lane\n- 1/1/26 - Item`;
+    test('sub-items have kind and id', () => {
+        const input = `# Radar\n\n## Work\n- 3/15/26 - Deploy\n    - Confirm plan`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings.length, 1);
-        assert.strictEqual(result.radar.swimlanes.length, 1);
-        assert.strictEqual(result.todo.sections[0].items.length, 1);
+        const sub = result.radar.swimlanes[0].items[0].subItems[0];
+        assert.strictEqual(sub.kind, 'radarSubItem');
+        assert.ok(sub.id.startsWith('rs_'));
     });
 
-    test('empty reminders section returns empty meetings array', () => {
-        const input = `# Reminders\n\n# Radar\n\n# TODO`;
+    test('mixed item types in one swimlane', () => {
+        const input = `# Radar\n\n## Work\n- 3/15/26 - Deploy\n- Standup (Mon, Wed)\n- Birthday (4/15)`;
         const result = parseIncoming(input);
-        assert.strictEqual(result.reminders.meetings.length, 0);
+        const items = result.radar.swimlanes[0].items;
+        assert.strictEqual(items.length, 3);
+        assert.ok(items[0].date);
+        assert.strictEqual(items[0].recurrence, undefined);
+        assert.ok(items[1].recurrence);
+        assert.strictEqual(items[1].recurrence!.type, 'weekly');
+        assert.ok(items[2].recurrence);
+        assert.strictEqual(items[2].recurrence!.type, 'yearly');
+    });
+
+    test('items without sub-items have empty array', () => {
+        const input = `# Radar\n\n## Work\n- 3/15/26 - Deploy`;
+        const result = parseIncoming(input);
+        assert.deepStrictEqual(result.radar.swimlanes[0].items[0].subItems, []);
     });
 
     // ---- Goals Section ----

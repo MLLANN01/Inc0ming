@@ -8,13 +8,6 @@
 
 ## Birthdays
 <!-- color: #ff6699 -->
-- 4/15/26 - Steven
-- 7/22/26 - Jordan
-- 8/23/26 - Priya
-- 11/10/26 - Marcus
-- 5/1/26 - Jonny
-- 5/2/26 - Susie
-- 3/26/26 - Alex
 
 ## Security Blocks
 ### Critical Vulnerabilities
@@ -49,6 +42,29 @@
 - 6/15/26 - GDPR review
 - 12/1/26 - ISO 27001 recertification
 
+## Meetings
+- Morning Standup (Mon, Tue, Wed, Thu, Fri)
+    - Blocked on API gateway retry logic (JIRA-1289)
+    - Need deployment window for auth token fix
+    - Cloud migration Phase 1 cutover approaching
+- 1:1 with Sarah (Wed)
+    - Ask about promotion timeline
+    - Discuss OKR alignment for Q2
+    - Bring up conference budget request
+- Sprint Retro (Fri)
+    - Highlight: logging format update shipped early
+    - Discuss: dashboard perf bottleneck taking longer than expected
+    - Action item follow-up: on-call rotation changes
+- Architecture Review (Tue, Thu)
+    - Rate limiting design proposal ready for review
+    - Caching layer approach — Redis vs in-memory
+    - API versioning strategy for v2 migration
+- Team Sync with Platform (Mon)
+    - Coordinate on firewall upgrade timeline
+    - Shared monitoring dashboard access
+    - Incident runbook ownership handoff
+- Monthly All-Hands (Fri)
+
 # Quotes
 > Stay hungry, stay foolish. — Steve Jobs
 > Atomic habits are the compound interest of self-improvement. — James Clear, Atomic Habits
@@ -60,29 +76,6 @@
 > First, solve the problem. Then, write the code. — John Johnson
 > It is not the strongest of the species that survives, nor the most intelligent, but the one most responsive to change. — Charles Darwin
 > Plans are useless, but planning is indispensable. — Dwight D. Eisenhower
-
-# Reminders
-## Morning Standup (Mon, Tue, Wed, Thu, Fri)
-- Blocked on API gateway retry logic (JIRA-1289)
-- Need deployment window for auth token fix
-- Cloud migration Phase 1 cutover approaching
-## 1:1 with Sarah (Wed)
-- Ask about promotion timeline
-- Discuss OKR alignment for Q2
-- Bring up conference budget request
-## Sprint Retro (Fri)
-- Highlight: logging format update shipped early
-- Discuss: dashboard perf bottleneck taking longer than expected
-- Action item follow-up: on-call rotation changes
-## Architecture Review (Tue, Thu)
-- Rate limiting design proposal ready for review
-- Caching layer approach — Redis vs in-memory
-- API versioning strategy for v2 migration
-## Team Sync with Platform (Mon)
-- Coordinate on firewall upgrade timeline
-- Shared monitoring dashboard access
-- Incident runbook ownership handoff
-## Monthly All-Hands (Fri)
 
 # Goals
 
@@ -188,11 +181,14 @@
 - My Page
     Created: 3/11/26
     Updated: 3/11/26
+- C++ Best Practices
+    Created: 3/12/26
+    Updated: 3/12/26
 
 # TODO
 ## Inc0ming
 * [ ] Pro Site Update
-    Due: 3/8/26
+    Due: 4/7/26
 * [x] Edit TODO and Radar Items and SubSections
 * [x] Order by Date Radar Items
 * [x] Create a reminders section
@@ -223,7 +219,8 @@
 * [ ] Follow up with security team on pen test results {radar:Security Blocks}
     Due: 3/17/26
 ## Learning
-* [ ] Read "Designing Data-Intensive Applications"
+* [ ] Read "Designing Data-Intensive Applications" {radar:Blah Blah}
+    Due: 3/26/26
     - Part 1: Foundations
     - Part 2: Distributed Data
 * [ ] Complete AWS SA course modules {radar:Certifications}

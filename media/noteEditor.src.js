@@ -10,25 +10,65 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { defaultMarkdownSerializer, defaultMarkdownParser, MarkdownSerializer, MarkdownParser } from '@tiptap/pm/markdown';
 
-// Build a markdown serializer that supports task lists and images
-const serializer = new MarkdownSerializer(
-    {
-        ...defaultMarkdownSerializer.nodes,
-        taskList(state, node) {
-            state.renderList(node, '  ', () => '');
-        },
-        taskItem(state, node) {
-            const checked = node.attrs.checked ? '[x]' : '[ ]';
-            state.write(`- ${checked} `);
-            state.renderContent(node);
-        },
-        image(state, node) {
-            // Don't escape the src URL — state.esc() adds backslashes to underscores etc.
-            state.write(`![${state.esc(node.attrs.alt || '')}](${node.attrs.src})`);
-        },
+// Build a markdown serializer that supports task lists and images.
+// TipTap uses camelCase node names (bulletList, listItem, etc.) while
+// prosemirror-markdown uses snake_case (bullet_list, list_item, etc.).
+// We add aliases for both so the serializer works regardless of source.
+const baseNodes = {
+    ...defaultMarkdownSerializer.nodes,
+    taskList(state, node) {
+        state.renderList(node, '  ', () => '');
     },
-    defaultMarkdownSerializer.marks
-);
+    taskItem(state, node) {
+        const checked = node.attrs.checked ? '[x]' : '[ ]';
+        state.write(`- ${checked} `);
+        state.renderContent(node);
+    },
+    image(state, node) {
+        // Don't escape the src URL — state.esc() adds backslashes to underscores etc.
+        state.write(`![${state.esc(node.attrs.alt || '')}](${node.attrs.src})`);
+    },
+};
+
+// Add camelCase aliases so the serializer recognises TipTap node names
+const camelAliases = {
+    bulletList: 'bullet_list',
+    orderedList: 'ordered_list',
+    listItem: 'list_item',
+    codeBlock: 'code_block',
+    hardBreak: 'hard_break',
+    horizontalRule: 'horizontal_rule',
+};
+for (const [camel, snake] of Object.entries(camelAliases)) {
+    if (baseNodes[snake] && !baseNodes[camel]) {
+        baseNodes[camel] = baseNodes[snake];
+    }
+}
+
+const serializer = new MarkdownSerializer(baseNodes, defaultMarkdownSerializer.marks);
+
+// ProseMirror default schema uses snake_case node names; TipTap uses camelCase.
+// Map PM → TipTap so parsed markdown JSON can be loaded into the TipTap editor.
+const pmToTiptap = {
+    bullet_list: 'bulletList',
+    ordered_list: 'orderedList',
+    list_item: 'listItem',
+    code_block: 'codeBlock',
+    hard_break: 'hardBreak',
+    horizontal_rule: 'horizontalRule',
+    task_list: 'taskList',
+    task_item: 'taskItem',
+};
+
+function remapNodeTypes(json, map) {
+    if (!json || typeof json !== 'object') { return json; }
+    const out = { ...json };
+    if (out.type && map[out.type]) { out.type = map[out.type]; }
+    if (Array.isArray(out.content)) {
+        out.content = out.content.map(c => remapNodeTypes(c, map));
+    }
+    return out;
+}
 
 let editor = null;
 let nonce = '';
@@ -113,7 +153,8 @@ function setContent(markdown) {
     if (!editor) { return; }
     try {
         const doc = defaultMarkdownParser.parse(markdown || '');
-        editor.commands.setContent(doc.toJSON());
+        const json = remapNodeTypes(doc.toJSON(), pmToTiptap);
+        editor.commands.setContent(json);
     } catch (e) {
         // Fallback: set as paragraph text
         editor.commands.setContent(markdown || '');

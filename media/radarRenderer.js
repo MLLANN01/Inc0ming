@@ -114,9 +114,31 @@
     }
 
     function setData(data) {
-        radarData = data;
+        radarData = filterNonRecurring(data);
         readThemeColors();
         resizeCanvas();
+    }
+
+    // Strip recurring items and drop swimlanes that become empty
+    function filterNonRecurring(data) {
+        if (!data || !data.swimlanes) { return data; }
+        var filtered = [];
+        for (var i = 0; i < data.swimlanes.length; i++) {
+            var sw = data.swimlanes[i];
+            var items = sw.items.filter(function (it) { return !it.recurrence; });
+            var subGroups = [];
+            for (var j = 0; j < sw.subGroups.length; j++) {
+                var sg = sw.subGroups[j];
+                var sgItems = sg.items.filter(function (it) { return !it.recurrence; });
+                if (sgItems.length > 0) {
+                    subGroups.push({ id: sg.id, name: sg.name, swimlaneId: sg.swimlaneId, items: sgItems });
+                }
+            }
+            if (items.length > 0 || subGroups.length > 0) {
+                filtered.push({ id: sw.id, name: sw.name, color: sw.color, items: items, subGroups: subGroups });
+            }
+        }
+        return { swimlanes: filtered };
     }
 
     function getBlipColor(days) {
@@ -133,44 +155,31 @@
         var drawWidth = w - LEFT_MARGIN - RIGHT_MARGIN;
         var rowIndex = 0;
 
-        for (var si = 0; si < radarData.swimlanes.length; si++) {
-            var swimlane = radarData.swimlanes[si];
-
-            // Direct items
-            for (var ii = 0; ii < swimlane.items.length; ii++) {
-                var item = swimlane.items[ii];
+        function addItemBlips(items, rowIdx, swimlaneName, subGroupName) {
+            for (var ii = 0; ii < items.length; ii++) {
+                var item = items[ii];
                 var itemShape = item.shape || 'circle';
                 if (!activeShapeFilters[itemShape]) { continue; }
-                var days = daysBetween(new Date(), new Date(item.date));
+                var effDate = item.date ? new Date(item.date) : null;
+                if (!effDate) { continue; }
+                var days = daysBetween(new Date(), effDate);
                 if (days < 0 || days > MAX_DAYS) { continue; }
                 var x = LEFT_MARGIN + (days / MAX_DAYS) * drawWidth;
-                var y = TOP_MARGIN + rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+                var y = TOP_MARGIN + rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
                 blips.push({
                     x: x, y: y, item: item, days: days,
                     color: getBlipColor(days),
-                    swimlane: swimlane.name, subGroup: null,
+                    swimlane: swimlaneName, subGroup: subGroupName,
                 });
             }
+        }
 
-            // Sub-groups
+        for (var si = 0; si < radarData.swimlanes.length; si++) {
+            var swimlane = radarData.swimlanes[si];
+            addItemBlips(swimlane.items, rowIndex, swimlane.name, null);
             for (var sgi = 0; sgi < swimlane.subGroups.length; sgi++) {
-                var sg = swimlane.subGroups[sgi];
-                for (var sii = 0; sii < sg.items.length; sii++) {
-                    var sgItem = sg.items[sii];
-                    var sgItemShape = sgItem.shape || 'circle';
-                    if (!activeShapeFilters[sgItemShape]) { continue; }
-                    var sgDays = daysBetween(new Date(), new Date(sgItem.date));
-                    if (sgDays < 0 || sgDays > MAX_DAYS) { continue; }
-                    var sgX = LEFT_MARGIN + (sgDays / MAX_DAYS) * drawWidth;
-                    var sgY = TOP_MARGIN + rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-                    blips.push({
-                        x: sgX, y: sgY, item: sgItem, days: sgDays,
-                        color: getBlipColor(sgDays),
-                        swimlane: swimlane.name, subGroup: sg.name,
-                    });
-                }
+                addItemBlips(swimlane.subGroups[sgi].items, rowIndex, swimlane.name, swimlane.subGroups[sgi].name);
             }
-
             rowIndex++;
         }
     }
@@ -478,9 +487,20 @@
             var lines = [];
             for (var hi = 0; hi < hoveredBlips.length; hi++) {
                 var hb = hoveredBlips[hi];
-                var hd = new Date(hb.item.date);
-                var hDateStr = (hd.getMonth() + 1) + '/' + hd.getDate() + '/' + (hd.getFullYear() % 100);
-                var line = hb.item.label + ' \u2014 ' + hDateStr + ' (' + hb.days + 'd)';
+                var line = hb.item.label;
+                if (hb.item.recurrence) {
+                    if (hb.item.recurrence.type === 'weekly') {
+                        line += ' (' + hb.item.recurrence.days.join(', ') + ')';
+                    } else {
+                        line += ' (' + hb.item.recurrence.month + '/' + hb.item.recurrence.day + ')';
+                    }
+                } else if (hb.item.date) {
+                    var hd = new Date(hb.item.date);
+                    var hDateStr = (hd.getMonth() + 1) + '/' + hd.getDate() + '/' + (hd.getFullYear() % 100);
+                    line += ' \u2014 ' + hDateStr;
+                }
+                line += ' (' + hb.days + 'd)';
+                if (hb.item.isToday) { line += ' \u2605 today'; }
                 if (hb.subGroup) { line += ' [' + hb.subGroup + ']'; }
                 lines.push(line);
             }

@@ -1,8 +1,7 @@
 import {
-    RadarData, RadarSwimlane, RadarSubGroup, RadarItem,
+    RadarData, RadarSwimlane, RadarSubGroup, RadarItem, RadarSubItem, RadarRecurrence, DayOfWeek,
     TodoData, TodoItem, TodoSection,
     QuoteData, QuoteItem,
-    ReminderData, ReminderMeeting, ReminderPoint, DayOfWeek,
     GoalData, GoalSection, GoalItem, GoalMilestone,
     BookmarkData, BookmarkSection,
     ContactData, ContactGroup, ContactItem,
@@ -26,7 +25,6 @@ export function parseIncoming(content: string): ParseResult {
         if (trimmed === '# Radar') { sectionStarts.push({ name: 'radar', start: i }); }
         else if (trimmed === '# TODO') { sectionStarts.push({ name: 'todo', start: i }); }
         else if (trimmed === '# Quotes') { sectionStarts.push({ name: 'quotes', start: i }); }
-        else if (trimmed === '# Reminders') { sectionStarts.push({ name: 'reminders', start: i }); }
         else if (trimmed === '# Goals') { sectionStarts.push({ name: 'goals', start: i }); }
         else if (trimmed === '# Bookmarks') { sectionStarts.push({ name: 'bookmarks', start: i }); }
         else if (trimmed === '# Contacts') { sectionStarts.push({ name: 'contacts', start: i }); }
@@ -46,7 +44,6 @@ export function parseIncoming(content: string): ParseResult {
     const radarSection = getSectionLines('radar');
     const todoSection = getSectionLines('todo');
     const quotesSection = getSectionLines('quotes');
-    const remindersSection = getSectionLines('reminders');
     const goalsSection = getSectionLines('goals');
     const bookmarksSection = getSectionLines('bookmarks');
     const contactsSection = getSectionLines('contacts');
@@ -55,13 +52,24 @@ export function parseIncoming(content: string): ParseResult {
     const radar = parseRadarSection(radarSection.lines, radarSection.offset, errors, unparsedLines);
     const todo = parseTodoSection(todoSection.lines, todoSection.offset, errors);
     const quotes = parseQuotesSection(quotesSection.lines, quotesSection.offset, errors);
-    const reminders = parseRemindersSection(remindersSection.lines, remindersSection.offset, errors);
     const goals = parseGoalsSection(goalsSection.lines, goalsSection.offset, errors);
     const bookmarks = parseBookmarksSection(bookmarksSection.lines);
     const contacts = parseContactsSection(contactsSection.lines);
     const notes = parseNotesSection(notesSection.lines);
 
-    return { radar, todo, quotes, reminders, goals, bookmarks, contacts, notes, errors, unparsedLines };
+    return { radar, todo, quotes, goals, bookmarks, contacts, notes, errors, unparsedLines };
+}
+
+const VALID_DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export function parseDayTags(str: string): DayOfWeek[] {
+    const days: DayOfWeek[] = [];
+    const parts = str.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    for (const part of parts) {
+        const match = VALID_DAYS.find(d => d.toLowerCase() === part.toLowerCase());
+        if (match) { days.push(match); }
+    }
+    return days;
 }
 
 function parseRadarSection(
@@ -73,6 +81,7 @@ function parseRadarSection(
     const swimlanes: RadarSwimlane[] = [];
     let currentSwimlane: RadarSwimlane | null = null;
     let currentSubGroup: RadarSubGroup | null = null;
+    let currentItem: RadarItem | null = null;
     let pendingColor: string | undefined;
 
     for (let i = 0; i < lines.length; i++) {
@@ -81,11 +90,25 @@ function parseRadarSection(
         const trimmed = line.trim();
 
         // Skip blank lines and the # Radar heading
-        if (trimmed === '' || trimmed === '# Radar') { continue; }
+        if (trimmed === '' || trimmed === '# Radar') { currentItem = null; continue; }
+
+        // 4-space indented sub-item: "    - text"
+        if (line.startsWith('    - ') && currentItem) {
+            const subText = line.slice(6).trim();
+            if (subText) {
+                currentItem.subItems.push({
+                    kind: 'radarSubItem',
+                    id: generateId('rs'),
+                    text: subText,
+                });
+            }
+            continue;
+        }
 
         // HTML comment metadata: <!-- key: value -->
         const metaMatch = trimmed.match(/^<!--\s*(\w+)\s*:\s*(.+?)\s*-->$/);
         if (metaMatch) {
+            currentItem = null;
             const key = metaMatch[1].toLowerCase();
             const value = metaMatch[2];
             if (key === 'color') {
@@ -101,6 +124,7 @@ function parseRadarSection(
         // ## Swimlane heading
         if (line.startsWith('## ')) {
             currentSubGroup = null;
+            currentItem = null;
             const id = generateId('sw');
             currentSwimlane = {
                 kind: 'swimlane',
@@ -117,6 +141,7 @@ function parseRadarSection(
 
         // ### Sub-group heading
         if (line.startsWith('### ') && currentSwimlane) {
+            currentItem = null;
             const id = generateId('sg');
             currentSubGroup = {
                 kind: 'subgroup',
@@ -129,44 +154,94 @@ function parseRadarSection(
             continue;
         }
 
-        // - M/D/YY - Label (radar item)
+        // - items (radar item line — three formats)
         if (trimmed.startsWith('- ') && currentSwimlane) {
-            const itemMatch = trimmed.match(/^- (\S+) - (.+)$/);
-            if (itemMatch) {
-                const date = parseDateMDYY(itemMatch[1]);
+            currentItem = null;
+            const content = trimmed.slice(2).trim();
+
+            // Format 1: One-time — M/D/YY - Label
+            const oneTimeMatch = content.match(/^(\S+) - (.+)$/);
+            if (oneTimeMatch) {
+                const date = parseDateMDYY(oneTimeMatch[1]);
                 if (date) {
                     const item: RadarItem = {
                         kind: 'radarItem',
                         id: generateId('ri'),
                         date,
-                        label: itemMatch[2].trim(),
+                        label: oneTimeMatch[2].trim(),
+                        subItems: [],
                     };
-                    if (currentSubGroup) {
-                        currentSubGroup.items.push(item);
-                    } else {
-                        currentSwimlane.items.push(item);
+                    if (currentSubGroup) { currentSubGroup.items.push(item); }
+                    else { currentSwimlane.items.push(item); }
+                    currentItem = item;
+                    continue;
+                }
+                // Date didn't parse — could be a different format, fall through
+            }
+
+            // Format 2 & 3: Check for parenthetical at end — Label (...)
+            const parenMatch = content.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+            if (parenMatch) {
+                const label = parenMatch[1].trim();
+                const inside = parenMatch[2].trim();
+
+                // Try weekly: all tokens are valid day names
+                const dayTokens = parseDayTags(inside);
+                const allTokens = inside.split(/[,\s]+/).filter(Boolean);
+                if (dayTokens.length > 0 && dayTokens.length === allTokens.length) {
+                    const item: RadarItem = {
+                        kind: 'radarItem',
+                        id: generateId('ri'),
+                        recurrence: { type: 'weekly', days: dayTokens },
+                        label,
+                        subItems: [],
+                    };
+                    if (currentSubGroup) { currentSubGroup.items.push(item); }
+                    else { currentSwimlane.items.push(item); }
+                    currentItem = item;
+                    continue;
+                }
+
+                // Try yearly: M/D (no year)
+                const yearlyMatch = inside.match(/^(\d{1,2})\/(\d{1,2})$/);
+                if (yearlyMatch) {
+                    const month = parseInt(yearlyMatch[1], 10);
+                    const day = parseInt(yearlyMatch[2], 10);
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        const item: RadarItem = {
+                            kind: 'radarItem',
+                            id: generateId('ri'),
+                            recurrence: { type: 'yearly', month, day },
+                            label,
+                            subItems: [],
+                        };
+                        if (currentSubGroup) { currentSubGroup.items.push(item); }
+                        else { currentSwimlane.items.push(item); }
+                        currentItem = item;
+                        continue;
                     }
-                    continue;
-                } else {
-                    errors.push({
-                        line: lineNumber,
-                        content: line,
-                        message: `Could not parse date "${itemMatch[1]}" — expected M/D/YY format`,
-                    });
-                    // Preserve the line
-                    unparsedLines.push({
-                        content: line,
-                        afterSection: currentSwimlane.name + (currentSubGroup ? '/' + currentSubGroup.name : ''),
-                    });
-                    continue;
                 }
             }
 
-            // Starts with "- " but doesn't match pattern
+            // If one-time match existed but date was bad, report error
+            if (oneTimeMatch) {
+                errors.push({
+                    line: lineNumber,
+                    content: line,
+                    message: `Could not parse date "${oneTimeMatch[1]}" — expected M/D/YY format`,
+                });
+                unparsedLines.push({
+                    content: line,
+                    afterSection: currentSwimlane.name + (currentSubGroup ? '/' + currentSubGroup.name : ''),
+                });
+                continue;
+            }
+
+            // Starts with "- " but doesn't match any pattern
             errors.push({
                 line: lineNumber,
                 content: line,
-                message: `Expected format "- M/D/YY - Label"`,
+                message: `Expected format "- M/D/YY - Label", "- Label (Day, Day)", or "- Label (M/D)"`,
             });
             unparsedLines.push({
                 content: line,
@@ -284,74 +359,6 @@ function parseTodoSection(
     flushNotes();
 
     return { sections };
-}
-
-const VALID_DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-export function parseDayTags(str: string): DayOfWeek[] {
-    const days: DayOfWeek[] = [];
-    const parts = str.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
-    for (const part of parts) {
-        const match = VALID_DAYS.find(d => d.toLowerCase() === part.toLowerCase());
-        if (match) { days.push(match); }
-    }
-    return days;
-}
-
-function parseRemindersSection(
-    lines: string[],
-    lineOffset: number,
-    errors: ParseError[],
-): ReminderData {
-    const meetings: ReminderMeeting[] = [];
-    let currentMeeting: ReminderMeeting | null = null;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const lineNumber = lineOffset + i + 1;
-        const trimmed = line.trim();
-        if (trimmed === '' || trimmed === '# Reminders') { continue; }
-
-        // ## Meeting Name (Day, Day)
-        if (line.startsWith('## ')) {
-            const heading = line.slice(3).trim();
-            const dayMatch = heading.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-            let name: string;
-            let days: DayOfWeek[] = [];
-
-            if (dayMatch) {
-                name = dayMatch[1].trim();
-                days = parseDayTags(dayMatch[2]);
-            } else {
-                name = heading;
-            }
-
-            currentMeeting = {
-                kind: 'reminderMeeting',
-                id: generateId('rm'),
-                name,
-                days,
-                points: [],
-            };
-            meetings.push(currentMeeting);
-            continue;
-        }
-
-        // - text (talking point)
-        if (trimmed.startsWith('- ') && currentMeeting) {
-            const text = trimmed.slice(2).trim();
-            if (text) {
-                currentMeeting.points.push({
-                    kind: 'reminderPoint',
-                    id: generateId('rp'),
-                    text,
-                });
-            }
-            continue;
-        }
-    }
-
-    return { meetings };
 }
 
 function parseGoalsSection(
