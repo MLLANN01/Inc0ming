@@ -79,6 +79,7 @@ export class DashboardPanel {
         const layout = this._context.workspaceState.get('inc0ming.gridLayout') || {};
         const radarVisible = this._context.workspaceState.get('inc0ming.radarVisible', true);
         const sectionOrder = this._context.workspaceState.get('inc0ming.sectionOrder');
+        const meetingCardOrder = this._context.workspaceState.get('inc0ming.meetingCardOrder');
         const parseErrors = this._store.errors.length > 0 ? this._store.errors : undefined;
 
         this._panel.webview.postMessage({
@@ -92,6 +93,7 @@ export class DashboardPanel {
                 todo: this._store.todo,
                 radarVisible,
                 sectionOrder,
+                meetingCardOrder,
                 parseErrors,
                 archive: this._store.computeArchive(),
                 bookmarks: this._store.bookmarks,
@@ -146,6 +148,9 @@ export class DashboardPanel {
                 return;
             case 'saveSectionOrder':
                 await this._context.workspaceState.update('inc0ming.sectionOrder', msg.order);
+                return;
+            case 'saveMeetingCardOrder':
+                await this._context.workspaceState.update('inc0ming.meetingCardOrder', msg.order);
                 return;
             case 'toggleTodo':
                 success = this._store.toggleTodo(msg.id);
@@ -588,6 +593,22 @@ export class DashboardPanel {
             <div class="popover-buttons">
                 <button id="edit-save">Save</button>
                 <button id="edit-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="meeting-modal-overlay" class="meeting-modal-overlay hidden">
+        <div id="meeting-modal" class="meeting-modal">
+            <div id="meeting-modal-header">
+                <span id="meeting-modal-title"></span>
+                <span id="meeting-modal-badges"></span>
+                <button id="meeting-modal-close" title="Close">\u00d7</button>
+            </div>
+            <div id="meeting-modal-body">
+                <div id="meeting-modal-items"></div>
+                <div id="meeting-modal-add-row">
+                    <input type="text" id="meeting-modal-add-input" placeholder="Add agenda item...">
+                </div>
             </div>
         </div>
     </div>

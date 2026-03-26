@@ -114,31 +114,9 @@
     }
 
     function setData(data) {
-        radarData = filterNonRecurring(data);
+        radarData = data;
         readThemeColors();
         resizeCanvas();
-    }
-
-    // Strip recurring items and drop swimlanes that become empty
-    function filterNonRecurring(data) {
-        if (!data || !data.swimlanes) { return data; }
-        var filtered = [];
-        for (var i = 0; i < data.swimlanes.length; i++) {
-            var sw = data.swimlanes[i];
-            var items = sw.items.filter(function (it) { return !it.recurrence; });
-            var subGroups = [];
-            for (var j = 0; j < sw.subGroups.length; j++) {
-                var sg = sw.subGroups[j];
-                var sgItems = sg.items.filter(function (it) { return !it.recurrence; });
-                if (sgItems.length > 0) {
-                    subGroups.push({ id: sg.id, name: sg.name, swimlaneId: sg.swimlaneId, items: sgItems });
-                }
-            }
-            if (items.length > 0 || subGroups.length > 0) {
-                filtered.push({ id: sw.id, name: sw.name, color: sw.color, items: items, subGroups: subGroups });
-            }
-        }
-        return { swimlanes: filtered };
     }
 
     function getBlipColor(days) {
@@ -158,6 +136,7 @@
         function addItemBlips(items, rowIdx, swimlaneName, subGroupName) {
             for (var ii = 0; ii < items.length; ii++) {
                 var item = items[ii];
+                if (item.recurrence) { continue; } // recurring items don't appear as blips
                 var itemShape = item.shape || 'circle';
                 if (!activeShapeFilters[itemShape]) { continue; }
                 var effDate = item.date ? new Date(item.date) : null;

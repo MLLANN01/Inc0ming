@@ -82,6 +82,9 @@
         }
 
         if (window.ReminderRenderer) {
+            if (payload.meetingCardOrder) {
+                window.ReminderRenderer.setCardOrder(payload.meetingCardOrder);
+            }
             window.ReminderRenderer.setData(payload.radar);
         }
 
@@ -529,7 +532,6 @@
     }
 
     initDragScroll('goals-grid');
-    initDragScroll('meeting-notes-grid');
 
     // ====== SECTION DRAG-TO-REORDER ======
     var sectionsContainer = document.getElementById('sections-container');

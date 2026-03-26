@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.2] - 2026-03-25
+
+### Added
+- **Meeting notes modal** — click any meeting row to open a centered modal for viewing and editing agenda items. Supports add, inline edit, and delete of sub-items, plus double-click to rename the meeting title. Close with ×, backdrop click, or Escape.
+- **Meeting row drag-to-reorder** — drag the grip handle on meeting rows to reorder them vertically. Order persists across sessions.
+
+### Changed
+- **Meeting Notes redesigned** — replaced horizontal scrolling cards with a compact vertical list. Each row shows the meeting name, day badges, and an agenda item count. All editing is done through the modal, removing redundant inline controls from the list view.
+- New swimlanes and radar items now correctly appear on the scanner canvas and sidebar — fixed a bug where `filterNonRecurring` was applied to all radar data instead of only canvas blips, which hid empty swimlanes and broke new item visibility.
+- All dashboard sections now start collapsed by default.
+
+## [0.8.1] - 2026-03-18
+
+### Changed
+- Recurring radar items (weekly meetings, yearly events) no longer appear in the sidebar Upcoming list — only one-time dated items and virtual blips (goals, milestones, todos) are shown
+
 ## [0.8.0] - 2026-03-12
 
 ### Added

@@ -14,7 +14,7 @@ A VS Code extension that turns a simple markdown file into an interactive radar 
 - **Notes** — Notebook-based note-taking with a TipTap WYSIWYG editor supporting headings, lists, task lists, code blocks, blockquotes, images (paste/drag-and-drop), and links. Fullscreen editing mode, auto-save, and Ctrl+S manual save.
 - **Rich Todo Notes** — Todo items support free-form paragraph text and bullet lists. Click to expand, double-click to edit in a textarea. Notes indicator shows which items have content.
 - **Goals & Milestones** — Track longer-term goals with weighted milestones, progress bars, due dates, target notes, and completion notes. Goals and milestones with due dates appear as virtual blips on the radar.
-- **Recurring Radar Items** — Weekly (`- Label (Mon, Wed)`) and yearly (`- Label (4/15)`) recurrence on radar items, with sub-items for talking points. Weekly items highlight on scheduled days.
+- **Recurring Radar Items** — Weekly (`- Label (Mon, Wed)`) and yearly (`- Label (4/15)`) recurrence on radar items, with sub-items for talking points. Weekly items highlight on scheduled days. Meeting Notes section shows a compact draggable list; click any row to open a focused modal for editing agenda items.
 - **Inspiration** — Random quote display with a collapsible management section for adding, editing, and deleting quotes
 - **Past Due (Sidebar)** — Overdue todos, goals, milestones, and radar items listed in the sidebar with type badges and days-overdue counts. Click any item to navigate to it in the dashboard.
 - **Archive** — Collapsible dashboard section showing completed todos, completed goals (with completion notes and milestone summaries), and past radar events. Items can be deleted inline.

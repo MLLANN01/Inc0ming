@@ -326,6 +326,7 @@ export type WebviewMessage =
     | { type: 'editTodoRadarLink'; id: string; radarLink: string }
     | { type: 'editGoalRadarLink'; id: string; radarLink: string }
     | { type: 'saveSectionOrder'; order: string[] }
+    | { type: 'saveMeetingCardOrder'; order: string[] }
     | { type: 'addBookmarkSection'; name: string }
     | { type: 'renameBookmarkSection'; id: string; name: string }
     | { type: 'deleteBookmarkSection'; id: string }

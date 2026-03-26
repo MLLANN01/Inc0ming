@@ -8,6 +8,7 @@
 
 ## Birthdays
 <!-- color: #ff6699 -->
+- Bob (3/26)
 
 ## Security Blocks
 ### Critical Vulnerabilities
@@ -51,6 +52,8 @@
     - Ask about promotion timeline
     - Discuss OKR alignment for Q2
     - Bring up conference budget request
+    - sdhkjcndzc
+    - rnfkfe
 - Sprint Retro (Fri)
     - Highlight: logging format update shipped early
     - Discuss: dashboard perf bottleneck taking longer than expected
@@ -64,6 +67,9 @@
     - Shared monitoring dashboard access
     - Incident runbook ownership handoff
 - Monthly All-Hands (Fri)
+
+## Birthdays
+- Alex (3/24)
 
 # Quotes
 > Stay hungry, stay foolish. — Steve Jobs
@@ -189,10 +195,6 @@
 ## Inc0ming
 * [ ] Pro Site Update
     Due: 4/7/26
-* [x] Edit TODO and Radar Items and SubSections
-* [x] Order by Date Radar Items
-* [x] Create a reminders section
-* [x] Goal Tracking?
 * [x] Collapsible Todo
 * [x] Notes for TODO item
 * [x] Remove Default Bucket for TODOs
@@ -200,6 +202,8 @@
     add swim lane details to side explorer
     keep add swim lane text entry in dashboard
     allow swim lane radar item to be added in scanner
+* [ ] remove meeting reminders from upcoming side bar
+    Due: 3/20/26
 ## Work
 * [ ] Quarterly OKR draft
     - Identify key results

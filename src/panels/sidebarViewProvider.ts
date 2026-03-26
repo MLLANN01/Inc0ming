@@ -95,11 +95,13 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const allItems: { effDate: Date; label: string; id: string }[] = [];
         for (const sw of augmented.swimlanes) {
             for (const item of sw.items) {
+                if (item.recurrence) { continue; } // skip recurring items
                 const eff = effectiveDate(item);
                 if (eff) { allItems.push({ effDate: eff, label: item.label, id: item.id }); }
             }
             for (const sg of sw.subGroups) {
                 for (const item of sg.items) {
+                    if (item.recurrence) { continue; }
                     const eff = effectiveDate(item);
                     if (eff) { allItems.push({ effDate: eff, label: item.label, id: item.id }); }
                 }
